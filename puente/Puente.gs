@@ -548,6 +548,49 @@ function crearSecreto() {
   Logger.log('SECRETO nuevo (cópialo ahora en Obsidian; no lo compartas):\n' + secreto);
 }
 
+// Cabeceras de cada pestaña: las columnas que leen y escriben las funciones de arriba
+const CABECERAS = {
+  gimnasio: ['Fecha', 'Entreno', 'Estado', 'Notas'],
+  habitos: ['Fecha', 'Hábito', 'Valor'],
+  finanzas: ['Fecha', 'Concepto', 'Tipo', 'Categoría', 'Cantidad', 'ID'],
+  tareas: ['ID', 'Tarea', 'Fecha', 'Categoría', 'Hecha', 'Creada'],
+};
+
+/**
+ * Para empezar de cero: si la propiedad HOJA está vacía, crea una hoja nueva "Panel de vida" y guarda su ID;
+ * después crea las pestañas (con sus cabeceras) y los calendarios que falten. No cambia ni borra nada que ya exista.
+ */
+function prepararTodo() {
+  const props = PropertiesService.getScriptProperties();
+  let libro;
+  let nuevo = false;
+  if (props.getProperty('HOJA')) libro = libro_();
+  else {
+    libro = SpreadsheetApp.create('Panel de vida');
+    props.setProperty('HOJA', libro.getId());
+    nuevo = true;
+    Logger.log('Hoja nueva creada: ' + libro.getUrl());
+  }
+  Object.keys(PESTANAS).forEach((clave) => {
+    if (libro.getSheetByName(PESTANAS[clave])) return;
+    const hoja = libro.insertSheet(PESTANAS[clave]);
+    hoja.appendRow(CABECERAS[clave]);
+    hoja.setFrozenRows(1);
+    Logger.log('Pestaña creada: ' + PESTANAS[clave]);
+  });
+  // Una hoja nueva trae una pestaña vacía ("Hoja 1"): se quita
+  if (nuevo) {
+    libro.getSheets().filter((h) => !Object.values(PESTANAS).includes(h.getName()) && h.getLastRow() === 0)
+      .forEach((h) => libro.deleteSheet(h));
+  }
+  Object.keys(CALENDARIOS).forEach((clave) => {
+    if (calendario_(clave, false)) return;
+    CalendarApp.createCalendar(CALENDARIOS[clave]);
+    Logger.log('Calendario creado: ' + CALENDARIOS[clave]);
+  });
+  Logger.log('Listo. Ahora ejecuta crearSecreto (si aún no lo has hecho) y después comprobar.');
+}
+
 /** Comprueba que el puente llega a la hoja y enseña cuántas filas hay en cada pestaña. */
 function comprobar() {
   Object.keys(PESTANAS).forEach((clave) => {

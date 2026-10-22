@@ -387,6 +387,12 @@ if (modo === "salud") {
     `</div><div class="p-aside">` + nota + calendarioPaq.calendario + calendarioPaq.turnos + proyectosHtml + `</div></div>`;
 }
 
-dv.container.innerHTML = html;
+// Sin ninguna nota del día todavía (primera vez): aviso que lleva a las páginas de ejemplo
+const RUTA_EJEMPLO = "Panel/Ejemplo/Ejemplo - " + (modo === "salud" ? "Salud" : "Inicio") + ".md";
+const avisoVacio = Object.keys(notas).length ? "" :
+  `<div class="p-aviso">Todavía no hay datos. Mira cómo queda con datos de ejemplo en ` +
+  `<a class="internal-link" data-href="${esc(RUTA_EJEMPLO)}" href="${esc(RUTA_EJEMPLO)}">${esc(RUTA_EJEMPLO.split("/").pop().replace(/\.md$/, ""))}</a>` +
+  `, o pulsa <b>Registrar día</b> para empezar.</div>`;
+dv.container.innerHTML = avisoVacio + html;
 activarHabitos(dv.container);   // pulsar un día de la gráfica de hábitos
 if (modo !== "salud") calendarioPaq.c.activarCalendario(dv.container, calendarioPaq.eventos, calendarioPaq.gym, hoyS);   // botones de mes

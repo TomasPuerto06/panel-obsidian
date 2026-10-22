@@ -45,7 +45,7 @@ const NOMBRES_ENTRENO = ENTRENOS.map((e) => e.nombre).concat([DESCANSO]);
 const TIPOS = ["gasto", "ingreso", "ahorro", "inversion"];
 // Categorías de movimiento propuestas (sin tildes ni espacios). El formulario añade las que ya usen tus movimientos.
 const CATEGORIAS = ["comida", "transporte", "ocio", "compras", "servicios", "nomina", "inversion", "ahorro", "otros"];
-// Categorías de tarea: las de la app (personal, clase, trabajo y gimnasio) más "proyecto", propia del panel
+// Categorías de tarea que ofrece el formulario (al editar, se añade la que ya tenga la tarea)
 const CAT_TAREAS = ["personal", "clase", "trabajo", "gimnasio", "proyecto"];
 // Hábitos del puente: nombre en la hoja -> [propiedad de la nota, mínimo, máximo, es sí/no]
 const HABITOS = {
@@ -431,9 +431,9 @@ function textoErrorCola(r) {
 async function enviarOEncolar(params, op, datos) {
   await encolar(params.app, op, datos);
   const conexion = await cargarConexion(params);
-  if (!conexion) return "guardado en Obsidian; configura el puente para enviarlo a la app";
+  if (!conexion) return "guardado en Obsidian; configura el puente para enviarlo a Google";
   const r = await vaciarCola(params, conexion);
-  if (r.ok) return r.rechazadas ? "guardado en Obsidian, pero la app lo rechazó (mira rechazadas.json)" : "guardado y enviado a la app";
+  if (r.ok) return r.rechazadas ? "guardado en Obsidian, pero Google lo rechazó (mira rechazadas.json)" : "guardado y enviado a Google";
   return "guardado en Obsidian; " + textoErrorCola(r);
 }
 
@@ -592,7 +592,7 @@ async function borrarMovimiento(params) {
   if (!sel) return;
   const fm = frontmatterDe(app, sel.archivo);
   let confirmado = false;
-  try { confirmado = await quickAddApi.yesNoPrompt("Borrar movimiento", "¿Borrar «" + fm.concepto + "» (" + fm.cantidad + " €, " + fm.fecha + ")? Se borra también de la app."); }
+  try { confirmado = await quickAddApi.yesNoPrompt("Borrar movimiento", "¿Borrar «" + fm.concepto + "» (" + fm.cantidad + " €, " + fm.fecha + ")? Se borra también de Google."); }
   catch (e) { return; }
   if (!confirmado) return;
   await app.fileManager.trashFile(sel.archivo);   // a la papelera de Obsidian: se puede recuperar
@@ -678,7 +678,7 @@ async function borrarTarea(params) {
   if (!sel) return;
   const t = tareaDeNota(frontmatterDe(app, sel.archivo));
   let confirmado = false;
-  try { confirmado = await quickAddApi.yesNoPrompt("Borrar tarea", "¿Borrar «" + t.tarea + "»? Se borra también de la app."); } catch (e) { return; }
+  try { confirmado = await quickAddApi.yesNoPrompt("Borrar tarea", "¿Borrar «" + t.tarea + "»? Se borra también de Google."); } catch (e) { return; }
   if (!confirmado) return;
   await app.fileManager.trashFile(sel.archivo);   // a la papelera de Obsidian: se puede recuperar
   const estado = await enviarOEncolar(params, "borrarTarea", { id: sel.id });
