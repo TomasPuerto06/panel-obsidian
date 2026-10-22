@@ -1,0 +1,305 @@
+{
+  "_nota": "Copia de las acciones de QuickAdd del panel (solo las acciones, sin claves ni otros ajustes). Para restaurarlas en otro ordenador: instala QuickAdd, ciérralo todo, abre .obsidian/plugins/quickadd/data.json y sustituye la lista \"choices\" por la de este archivo (o crea las acciones a mano: cada una es una Macro con un script de usuario, Panel/Scripts/<nombre>.js).",
+  "choices": [
+    {
+      "id": "7d1f8f0c-3b7a-4a6e-9a51-0c4b1d6f2a10",
+      "name": "Registrar dia",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "id": "2b9c6e44-8f31-4f0d-b0a2-5d7e91c3a8f4",
+        "name": "Registrar dia",
+        "commands": [
+          {
+            "id": "e4a1d3b2-6c58-4b77-8d19-f3a2c0b9e571",
+            "name": "registrar_dia",
+            "type": "UserScript",
+            "path": "Panel/Scripts/registrar_dia.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "b3c1d2e4-1a2b-4c3d-8e4f-5a6b7c8d9e01",
+      "name": "Sincronizar",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "id": "b3c1d2e4-1a2b-4c3d-8e4f-5a6b7c8d9e02",
+        "name": "Sincronizar",
+        "commands": [
+          {
+            "id": "b3c1d2e4-1a2b-4c3d-8e4f-5a6b7c8d9e03",
+            "name": "sincronizar",
+            "type": "UserScript",
+            "path": "Panel/Scripts/sincronizar.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "c4d2e3f5-2b3c-4d4e-9f5a-6b7c8d9e0f01",
+      "name": "Anadir movimiento",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "id": "c4d2e3f5-2b3c-4d4e-9f5a-6b7c8d9e0f02",
+        "name": "Anadir movimiento",
+        "commands": [
+          {
+            "id": "c4d2e3f5-2b3c-4d4e-9f5a-6b7c8d9e0f03",
+            "name": "anadir_movimiento",
+            "type": "UserScript",
+            "path": "Panel/Scripts/anadir_movimiento.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "d5e3f4a6-3c4d-4e5f-8a6b-7c8d9e0f1a01",
+      "name": "Editar movimiento",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "id": "d5e3f4a6-3c4d-4e5f-8a6b-7c8d9e0f1a02",
+        "name": "Editar movimiento",
+        "commands": [
+          {
+            "id": "d5e3f4a6-3c4d-4e5f-8a6b-7c8d9e0f1a03",
+            "name": "editar_movimiento",
+            "type": "UserScript",
+            "path": "Panel/Scripts/editar_movimiento.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "e6f4a5b7-4d5e-4f6a-9b7c-8d9e0f1a2b01",
+      "name": "Borrar movimiento",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "id": "e6f4a5b7-4d5e-4f6a-9b7c-8d9e0f1a2b02",
+        "name": "Borrar movimiento",
+        "commands": [
+          {
+            "id": "e6f4a5b7-4d5e-4f6a-9b7c-8d9e0f1a2b03",
+            "name": "borrar_movimiento",
+            "type": "UserScript",
+            "path": "Panel/Scripts/borrar_movimiento.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "f7a5b6c8-5e6f-4a7b-8c8d-9e0f1a2b3c01",
+      "name": "Configurar puente",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "id": "f7a5b6c8-5e6f-4a7b-8c8d-9e0f1a2b3c02",
+        "name": "Configurar puente",
+        "commands": [
+          {
+            "id": "f7a5b6c8-5e6f-4a7b-8c8d-9e0f1a2b3c03",
+            "name": "configurar_puente",
+            "type": "UserScript",
+            "path": "Panel/Scripts/configurar_puente.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "a1b2c3d4-0001-4a1b-8c2d-3e4f5a6b7c01",
+      "name": "Anadir tarea",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "id": "a1b2c3d4-0001-4a1b-8c2d-3e4f5a6b7c02",
+        "name": "Anadir tarea",
+        "commands": [
+          {
+            "id": "a1b2c3d4-0001-4a1b-8c2d-3e4f5a6b7c03",
+            "name": "anadir_tarea",
+            "type": "UserScript",
+            "path": "Panel/Scripts/anadir_tarea.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "a1b2c3d4-0002-4a1b-8c2d-3e4f5a6b7c01",
+      "name": "Editar tarea",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "id": "a1b2c3d4-0002-4a1b-8c2d-3e4f5a6b7c02",
+        "name": "Editar tarea",
+        "commands": [
+          {
+            "id": "a1b2c3d4-0002-4a1b-8c2d-3e4f5a6b7c03",
+            "name": "editar_tarea",
+            "type": "UserScript",
+            "path": "Panel/Scripts/editar_tarea.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "a1b2c3d4-0003-4a1b-8c2d-3e4f5a6b7c01",
+      "name": "Marcar tarea",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "id": "a1b2c3d4-0003-4a1b-8c2d-3e4f5a6b7c02",
+        "name": "Marcar tarea",
+        "commands": [
+          {
+            "id": "a1b2c3d4-0003-4a1b-8c2d-3e4f5a6b7c03",
+            "name": "marcar_tarea",
+            "type": "UserScript",
+            "path": "Panel/Scripts/marcar_tarea.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "a1b2c3d4-0004-4a1b-8c2d-3e4f5a6b7c01",
+      "name": "Borrar tarea",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "id": "a1b2c3d4-0004-4a1b-8c2d-3e4f5a6b7c02",
+        "name": "Borrar tarea",
+        "commands": [
+          {
+            "id": "a1b2c3d4-0004-4a1b-8c2d-3e4f5a6b7c03",
+            "name": "borrar_tarea",
+            "type": "UserScript",
+            "path": "Panel/Scripts/borrar_tarea.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "b1c2d3e4-0001-4b1c-8d2e-4f5a6b7c8d01",
+      "name": "Anadir examen",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "id": "b1c2d3e4-0001-4b1c-8d2e-4f5a6b7c8d02",
+        "name": "Anadir examen",
+        "commands": [
+          {
+            "id": "b1c2d3e4-0001-4b1c-8d2e-4f5a6b7c8d03",
+            "name": "anadir_evento",
+            "type": "UserScript",
+            "path": "Panel/Scripts/anadir_evento.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "b1c2d3e4-0002-4b1c-8d2e-4f5a6b7c8d01",
+      "name": "Editar examen",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "id": "b1c2d3e4-0002-4b1c-8d2e-4f5a6b7c8d02",
+        "name": "Editar examen",
+        "commands": [
+          {
+            "id": "b1c2d3e4-0002-4b1c-8d2e-4f5a6b7c8d03",
+            "name": "editar_evento",
+            "type": "UserScript",
+            "path": "Panel/Scripts/editar_evento.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "b1c2d3e4-0003-4b1c-8d2e-4f5a6b7c8d01",
+      "name": "Borrar examen",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "id": "b1c2d3e4-0003-4b1c-8d2e-4f5a6b7c8d02",
+        "name": "Borrar examen",
+        "commands": [
+          {
+            "id": "b1c2d3e4-0003-4b1c-8d2e-4f5a6b7c8d03",
+            "name": "borrar_evento",
+            "type": "UserScript",
+            "path": "Panel/Scripts/borrar_evento.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "b1c2d3e4-0004-4b1c-8d2e-4f5a6b7c8d01",
+      "name": "Poner nota de examen",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "id": "b1c2d3e4-0004-4b1c-8d2e-4f5a6b7c8d02",
+        "name": "Poner nota de examen",
+        "commands": [
+          {
+            "id": "b1c2d3e4-0004-4b1c-8d2e-4f5a6b7c8d03",
+            "name": "poner_nota_examen",
+            "type": "UserScript",
+            "path": "Panel/Scripts/poner_nota_examen.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "b1c2d3e4-0005-4b1c-8d2e-4f5a6b7c8d01",
+      "name": "Anadir turno",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "id": "b1c2d3e4-0005-4b1c-8d2e-4f5a6b7c8d02",
+        "name": "Anadir turno",
+        "commands": [
+          {
+            "id": "b1c2d3e4-0005-4b1c-8d2e-4f5a6b7c8d03",
+            "name": "anadir_turno",
+            "type": "UserScript",
+            "path": "Panel/Scripts/anadir_turno.js",
+            "settings": {}
+          }
+        ]
+      }
+    }
+  ]
+}

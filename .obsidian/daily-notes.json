@@ -1,0 +1,5 @@
+{
+  "folder": "Panel/Diario",
+  "format": "YYYY-MM-DD",
+  "template": "Panel/Plantillas/Plantilla - Nota del dia"
+}

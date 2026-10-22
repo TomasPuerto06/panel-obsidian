@@ -1,0 +1,1417 @@
+/* Panel en Obsidian: estilo oscuro v1.
+   Solo se aplica a las notas con `cssclasses: [panel]` en su cabecera, así que los apuntes no cambian.
+   Paleta y reglas en Proyectos/Panel en Obsidian.md. La fuente está en chakra-petch.css. */
+
+.panel {
+  /* Paleta propia */
+  --panel-bg: #121318;
+  --panel-card: #1c1e26;
+  --panel-border: #2a2d38;
+  --panel-text: #f2f3f7;
+  --panel-muted: #9a9eb2;
+  --panel-accent: #4f86ff;
+  --panel-highlight: #2f5fe0;
+  --panel-green: #2ecc8f;
+  --panel-amber: #f5a623;
+  --panel-red: #ff5c6c;
+  --panel-purple: #a26cf5;
+
+  /* Variables de Obsidian redefinidas solo dentro del panel */
+  --background-primary: var(--panel-bg);
+  --background-primary-alt: var(--panel-card);
+  --background-secondary: var(--panel-card);
+  --background-modifier-border: var(--panel-border);
+  --text-normal: var(--panel-text);
+  --text-muted: var(--panel-muted);
+  --text-faint: var(--panel-muted);
+  --text-accent: var(--panel-accent);
+  --text-accent-hover: #7aa3ff;
+  --interactive-accent: var(--panel-accent);
+  --radius-m: 12px;
+  --radius-l: 12px;
+
+  /* Tipografía: Chakra Petch para todo el texto del panel */
+  --font-text: "Chakra Petch", sans-serif;
+  --font-interface: "Chakra Petch", sans-serif;
+
+  --h1-size: 1.9em;
+  --h1-weight: 700;
+  --h1-color: var(--panel-text);
+  --h2-size: 1.1em;
+  --h2-weight: 600;
+  --h2-color: var(--panel-text);
+  --bold-weight: 600;
+
+  background-color: var(--panel-bg);
+  font-family: "Chakra Petch", sans-serif;
+}
+
+/* Ancho completo: Obsidian limita el texto a unos 700 px ("ancho de línea legible").
+   En el panel se quita; en los apuntes sigue igual. Vale para lectura y edición. */
+.panel {
+  --file-line-width: 100%;
+}
+
+.panel .markdown-preview-sizer,
+.panel .cm-sizer,
+.panel .cm-content,
+.panel .cm-contentContainer {
+  max-width: none !important;
+  width: 100%;
+}
+
+.markdown-preview-view.panel .markdown-preview-sizer {
+  padding-inline: 24px;
+  box-sizing: border-box;
+}
+
+/* Limpieza: el título del archivo y las propiedades sobran (la página ya tiene su H1) */
+.panel .inline-title,
+.panel .metadata-container,
+.panel .metadata-properties-heading,
+.panel .metadata-properties,
+.panel .metadata-add-button,
+.panel .frontmatter-container {
+  display: none !important;
+}
+
+/* Títulos de sección */
+.panel h2 {
+  padding-bottom: 0.3em;
+  margin-top: 1.6em;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+/* Aviso de "v1: solo estructura" */
+.panel em {
+  color: var(--panel-muted);
+}
+
+/* ---------- Barra de navegación en píldoras ----------
+   En cada página es un callout `> [!nav]` con los enlaces. El texto suelto (los puntos
+   entre enlaces) se esconde con font-size 0 y los enlaces recuperan su tamaño. */
+.panel .callout[data-callout="nav"] {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0 0 1.2em;
+  box-shadow: none;
+}
+
+.panel .callout[data-callout="nav"] .callout-title {
+  display: none;
+}
+
+.panel .callout[data-callout="nav"] .callout-content,
+.panel .callout[data-callout="nav"] .callout-content p {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  font-size: 0;
+}
+
+.panel .callout[data-callout="nav"] a {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 8px 16px;
+  margin: 0 8px 8px 0;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-card);
+  color: var(--panel-muted);
+  text-decoration: none;
+}
+
+.panel .callout[data-callout="nav"] a:hover {
+  color: var(--panel-text);
+  border-color: var(--panel-accent);
+}
+
+/* Pestaña activa: cada página lleva su clase (panel-inicio, panel-salud...) */
+.panel-inicio .callout[data-callout="nav"] a[data-href="Panel - Inicio"],
+.panel-salud .callout[data-callout="nav"] a[data-href="Panel - Salud"],
+.panel-estudios .callout[data-callout="nav"] a[data-href="Panel - Estudios"],
+.panel-proyectos .callout[data-callout="nav"] a[data-href="Panel - Proyectos"],
+.panel-finanzas .callout[data-callout="nav"] a[data-href="Panel - Finanzas"] {
+  background: var(--panel-accent);
+  border-color: var(--panel-accent);
+  color: #0a0c12;
+  font-weight: 700;
+}
+
+/* ---------- Tarjetas y rejillas (fase 3) ----------
+   El HTML de las páginas usa estas clases (prefijo p-). Sin líneas en blanco dentro del
+   HTML de la nota: una línea en blanco corta el bloque y el resto se leería como Markdown. */
+
+/* Dos columnas que se apilan si el panel es estrecho */
+.panel .p-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.panel .p-main {
+  flex: 999 1 560px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.panel .p-aside {
+  flex: 1 1 280px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel .p-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.panel .p-row-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.panel .p-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+/* Títulos dentro del HTML: sin el borde ni el margen de los títulos de Markdown */
+.panel .p-layout h2 {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.panel .p-layout h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.panel .p-card {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  background: var(--panel-card);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+}
+
+.panel .p-card--wide {
+  flex: 2 1 420px;
+}
+
+/* Tarjeta destacada (nota del día) */
+.panel .p-card--note {
+  background: var(--panel-highlight);
+  border-color: var(--panel-highlight);
+  color: #ffffff;
+}
+
+.panel .p-card--note .p-muted {
+  color: #ffffff;
+}
+
+.panel .p-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.panel .p-muted {
+  color: var(--panel-muted);
+}
+
+.panel .p-small {
+  font-size: 12px;
+}
+
+.panel .p-label {
+  font-size: 13px;
+}
+
+.panel .p-value {
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.panel .p-value--m {
+  font-size: 28px;
+}
+
+/* Barra de progreso: la pista y el relleno (el ancho se pone con style="width:..%") */
+.panel .p-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--panel-border);
+  overflow: hidden;
+}
+
+.panel .p-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--panel-accent);
+}
+
+.panel .p-bar--green > span { background: var(--panel-green); }
+.panel .p-bar--purple > span { background: var(--panel-purple); }
+.panel .p-bar--amber > span { background: var(--panel-amber); }
+
+/* Zonas vacías */
+.panel .p-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64px;
+  color: var(--panel-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.panel .p-chart {
+  min-height: 200px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+/* Anillo vacío del reparto de dinero */
+.panel .p-donut {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+}
+
+.panel .p-ring {
+  flex: none;
+  width: 150px;
+  height: 150px;
+  box-sizing: border-box;
+  border: 14px solid var(--panel-border);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel .p-ring .p-value {
+  font-size: 24px;
+}
+
+/* Calendario */
+.panel .p-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--panel-muted);
+}
+
+.panel .p-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.panel .p-legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.panel .p-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--panel-muted);
+}
+
+/* Tabla de movimientos (fase 4). Se anulan los bordes por defecto de las tablas de Obsidian */
+.panel .p-table-wrap {
+  overflow-x: auto;
+}
+
+.panel .p-table {
+  --table-border-width: 0;
+  width: 100%;
+  min-width: 480px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.panel .p-table th,
+.panel .p-table td {
+  padding: 8px;
+  border: 0;
+  text-align: left;
+}
+
+.panel .p-table th {
+  color: var(--panel-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.panel .p-table td {
+  border-top: 1px solid var(--panel-border);
+}
+
+.panel .p-table .p-right {
+  text-align: right;
+}
+
+.panel .p-kpi-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel .p-dot--blue { background: var(--panel-accent); }
+.panel .p-dot--red { background: var(--panel-red); }
+.panel .p-dot--purple { background: var(--panel-purple); }   /* Finanzas: "Invertido" */
+.panel .p-dot--green { background: var(--panel-green); }
+.panel .p-dot--amber { background: var(--panel-amber); }
+
+/* ---------- Gráficas de barras y hábitos (fase 6) ----------
+   Las dibuja Panel/Scripts/salud/view.js. La altura de cada barra va en el style de la barra. */
+.panel .p-bars {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 200px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.panel .p-bars-col {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.panel .p-bar-v {
+  width: 100%;
+  max-width: 26px;
+  border-radius: 6px 6px 0 0;
+  background: #6a7bb0;
+}
+
+.panel .p-bar-v--ok { background: var(--panel-accent); }
+.panel .p-bar-v--low { background: #6a7bb0; }
+.panel .p-bar-v--green { background: var(--panel-green); }
+.panel .p-bar-v--purple { background: var(--panel-purple); }
+
+/* Día sin dato: un trazo fino para que se vea el hueco */
+.panel .p-bar-v--none {
+  height: 3px;
+  background: var(--panel-border);
+}
+
+/* Línea del objetivo */
+.panel .p-target {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed #7a7e92;
+}
+
+.panel .p-bars-labels {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.panel .p-bars-labels span {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--panel-muted);
+}
+
+.panel .p-habit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panel .p-note-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.panel .p-note-text {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.panel .p-card--note a {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+/* Matriz de entrenos de la semana: filas = entrenos, columnas = días */
+.panel .p-matrix {
+  display: grid;
+  grid-template-columns: minmax(170px, 1.8fr) repeat(7, minmax(36px, 1fr));
+  gap: 6px;
+  align-items: center;
+  min-width: 440px;
+}
+
+.panel .p-mx-dia {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 12px;
+  color: var(--panel-muted);
+}
+
+.panel .p-mx-dia small {
+  font-size: 11px;
+}
+
+.panel .p-mx-hoy {
+  color: var(--panel-text);
+  font-weight: 700;
+}
+
+.panel .p-mx-nombre {
+  font-size: 13px;
+}
+
+.panel .p-mx-celda {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--panel-border);
+  font-weight: 700;
+}
+
+.panel .p-mx-celda--on {
+  background: var(--panel-green);
+  color: #0a0c12;
+}
+
+.panel .p-mx-celda--descanso {
+  background: #5a5f73;
+  color: #ffffff;
+}
+
+/* Botón de acción (Registrar día) */
+.panel .p-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.panel a.p-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 10px;
+  background: var(--panel-accent);
+  color: #0a0c12;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.panel a.p-btn:hover {
+  background: #7aa3ff;
+  color: #0a0c12;
+}
+
+.panel .p-actions {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Botón secundario (Sincronizar) */
+.panel a.p-btn--sec {
+  background: var(--panel-card);
+  border: 1px solid var(--panel-border);
+  color: var(--panel-text);
+  font-weight: 500;
+}
+
+.panel a.p-btn--sec:hover {
+  background: var(--panel-card);
+  border-color: var(--panel-accent);
+  color: var(--panel-text);
+}
+
+/* Barra de acciones de Finanzas: mes a la izquierda, botones a la derecha */
+.panel .p-actions--mes {
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.panel .p-mes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: auto;
+  background: var(--panel-card);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 2px;
+}
+
+.panel .p-mes-btn {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--panel-text);
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.panel .p-mes-nombre {
+  min-width: 130px;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* Cuatro tarjetas del resumen en dos columnas cuando sobra poco sitio */
+.panel .p-kpis--2 {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+/* Barras en pares (ingresos y gastos) y colores nuevos */
+.panel .p-bars-col--par {
+  gap: 4px;
+}
+
+.panel .p-bars-col--par .p-bar-v {
+  width: 40%;
+  max-width: 28px;
+}
+
+.panel .p-bar-v--red { background: var(--panel-red); }
+.panel .p-bar-v--blanco { background: #ffffff; }
+
+.panel .p-card--note .p-bars {
+  border-bottom-color: rgba(255, 255, 255, 0.45);
+}
+
+.panel .p-card--note .p-bars-labels span {
+  color: #ffffff;
+}
+
+/* Anillo con datos: el degradado cónico se pone en el style; el hueco lo tapa */
+.panel .p-ring--datos {
+  border: 0;
+}
+
+.panel .p-ring-hueco {
+  width: 98px;
+  height: 98px;
+  border-radius: 50%;
+  background: var(--panel-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.panel .p-ring--datos .p-value {
+  font-size: 17px;
+}
+
+.panel .p-leyenda {
+  flex: 1 1 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel .p-leg-fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.panel .p-leg-nombre { flex: 1; }
+.panel .p-leg-pct { width: 44px; text-align: right; font-weight: 500; }
+
+/* Tabla de movimientos */
+.panel .p-nowrap { white-space: nowrap; }
+.panel .p-amount { font-weight: 600; white-space: nowrap; }
+.panel .p-amount--in { color: var(--panel-green); }
+
+.panel a.p-link {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--panel-accent);
+  text-decoration: none;
+}
+
+.panel a.p-link:hover {
+  background: var(--panel-border);
+  text-decoration: none;
+}
+
+.panel a.p-link--borrar {
+  color: var(--panel-red);
+}
+
+/* Página con piezas apiladas (acciones, tarjetas y columnas) separadas por el mismo hueco */
+.panel .p-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.panel .p-page > .p-actions {
+  margin-bottom: 0;
+}
+
+/* Las tarjetas que van una debajo de otra miden lo que necesitan; el 260px de basis solo vale
+   cuando están una al lado de otra (dentro de .p-row-cards) */
+.panel .p-main > .p-card,
+.panel .p-aside > .p-card,
+.panel .p-page > .p-card {
+  flex: 0 0 auto;
+}
+
+/* ---------- Proyectos y asignaturas ---------- */
+.panel .p-proy {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.panel .p-proy-cuerpo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Icono cuadrado con la inicial: el color indica la situación, el texto de la tarjeta la dice siempre */
+.panel .p-proy-icono {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #0a0c12;
+  background: var(--panel-accent);
+}
+
+.panel .p-proy-icono--pendiente { background: var(--panel-amber); }
+.panel .p-proy-icono--idea { background: var(--panel-purple); }
+.panel .p-proy-icono--terminado { background: var(--panel-green); }
+
+.panel .p-paso {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.panel .p-proy a.internal-link,
+.panel .p-paso a.internal-link,
+.panel .p-asig .p-label a.internal-link {
+  color: var(--panel-text);
+  text-decoration: none;
+}
+
+.panel .p-proy a.internal-link:hover,
+.panel .p-paso a.internal-link:hover,
+.panel .p-asig .p-label a.internal-link:hover {
+  text-decoration: underline;
+}
+
+.panel .p-asig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.panel .p-asig {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+}
+
+.panel .p-asig-enlaces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.panel .p-asig-enlaces a.internal-link {
+  padding: 2px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  font-size: 12px;
+  text-decoration: none;
+  color: var(--panel-accent);
+}
+
+.panel .p-asig-enlaces a.internal-link:hover {
+  border-color: var(--panel-accent);
+}
+
+/* ---------- Tareas ---------- */
+.panel .p-head-der {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.panel a.p-link--mas {
+  border: 1px solid var(--panel-border);
+  color: var(--panel-text);
+}
+
+.panel a.p-link--mas:hover {
+  border-color: var(--panel-accent);
+}
+
+.panel .p-tarea {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding-top: 4px;
+  border-top: 1px solid var(--panel-border);
+}
+
+.panel .p-tarea:first-of-type {
+  border-top: 0;
+}
+
+.panel .p-tarea-texto {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.panel .p-tarea--hecha .p-tarea-texto {
+  color: var(--panel-muted);
+  text-decoration: line-through;
+}
+
+/* Casilla de marcar: círculo vacío; relleno verde con una marca cuando está hecha */
+.panel a.p-check {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  box-sizing: border-box;
+  border: 2px solid var(--panel-muted);
+  border-radius: 50%;
+  text-decoration: none;
+}
+
+.panel a.p-check:hover {
+  border-color: var(--panel-green);
+}
+
+.panel a.p-check--on {
+  background: var(--panel-green);
+  border-color: var(--panel-green);
+  color: #0a0c12;
+}
+
+.panel a.p-check--on::after {
+  content: "✓";
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Plazo de la tarea: siempre lleva texto; el color solo refuerza */
+.panel .p-chip {
+  flex: none;
+  padding: 2px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--panel-muted);
+  white-space: nowrap;
+}
+
+.panel .p-chip--vencida {
+  border-color: var(--panel-red);
+  color: var(--panel-red);
+}
+
+.panel .p-chip--hoy {
+  border-color: var(--panel-amber);
+  color: var(--panel-amber);
+}
+
+.panel .p-tarea-acciones {
+  flex: none;
+  display: flex;
+}
+
+/* ---------- Exámenes y calendario ---------- */
+.panel .p-examen {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-top: 8px;
+  border-top: 1px solid var(--panel-border);
+}
+
+.panel .p-examen:first-of-type {
+  border-top: 0;
+}
+
+.panel .p-examen-cuerpo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Cajita con el día y el mes */
+.panel .p-fechacaja {
+  flex: none;
+  width: 48px;
+  height: 52px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  line-height: 1.1;
+}
+
+.panel .p-fechacaja b { font-size: 17px; }
+.panel .p-fechacaja small { font-size: 11px; color: var(--panel-muted); text-transform: uppercase; }
+
+/* Calendario del mes */
+.panel .p-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.panel .p-dia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--panel-text);
+}
+
+.panel .p-dia--examen { background: var(--panel-red); color: #121318; font-weight: 600; }
+.panel .p-dia--trabajo { background: var(--panel-amber); color: #121318; font-weight: 600; }
+.panel .p-dia--gym { background: var(--panel-green); color: #121318; font-weight: 600; }
+.panel .p-dia--hoy { outline: 2px solid #ffffff; outline-offset: 1px; }
+
+/* La tabla de Obsidian trae márgenes propios que abren un hueco bajo el título */
+.panel .p-table,
+.panel .p-table-wrap {
+  margin: 0;
+}
+
+/* Etiqueta de categoría: el color es un adorno, el texto siempre está */
+.panel .p-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.panel .p-tag--0 { color: #7aa3ff; }
+.panel .p-tag--1 { color: #f5a623; }
+.panel .p-tag--2 { color: #2ecc8f; }
+.panel .p-tag--3 { color: #b98cff; }
+.panel .p-tag--4 { color: #ff8fc7; }
+.panel .p-tag--5 { color: #c3c6d4; }
+
+/* ---------- Hábitos: gráfica de los últimos 14 días y checklist del día (22/10) ----------
+   La dibuja Panel/Scripts/salud/view.js. El SVG (rejilla, área y línea) se estira al ancho; los puntos
+   y las zonas de cada día son botones HTML encima. */
+.panel .p-hab {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.panel .p-hab-graf {
+  flex: 3 1 340px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel .p-hab-lista {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.panel .p-hg {
+  display: flex;
+  gap: 8px;
+  height: 180px;
+  padding-top: 8px;
+}
+
+.panel .p-hg-ejey {
+  position: relative;
+  flex: none;
+  width: 12px;
+}
+
+.panel .p-hg-ejey span {
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--panel-muted);
+}
+
+.panel .p-hg-plot {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.panel .p-hg-plot svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.panel .p-hg-rejilla {
+  stroke: var(--panel-border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.panel .p-hg-area {
+  fill: var(--panel-green);
+  fill-opacity: 0.12;
+  stroke: none;
+}
+
+.panel .p-hg-linea {
+  fill: none;
+  stroke: var(--panel-green);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Cada día: una columna invisible que ocupa todo el alto (zona amplia para el ratón y para pulsar) */
+.panel button.p-hg-col {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  height: auto;            /* Obsidian da a todos los botones una altura fija (--input-height) */
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.panel button.p-hg-col:hover,
+.panel button.p-hg-col:focus-visible {
+  background: rgba(255, 255, 255, 0.04);
+  outline: none;
+}
+
+/* Día elegido: línea vertical fina */
+.panel button.p-hg-col--sel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  border-left: 1px solid var(--panel-muted);
+}
+
+.panel .p-hg-punto {
+  position: absolute;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--panel-green);
+  box-shadow: 0 0 0 2px var(--panel-card);
+}
+
+/* Todos cumplidos: punto más grande con una marca (no solo el color) */
+.panel .p-hg-punto--todos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+
+.panel .p-hg-punto--todos::after {
+  content: "✓";
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: #0a0c12;
+}
+
+/* Etiqueta al pasar el ratón */
+.panel button.p-hg-col:hover::after,
+.panel button.p-hg-col:focus-visible::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 2;
+  padding: 4px 8px;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--panel-text);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.panel button.p-hg-col--der:hover::after,
+.panel button.p-hg-col--der:focus-visible::after {
+  left: auto;
+  right: 0;
+}
+
+.panel .p-hg-letras {
+  margin-top: 0;
+  padding-left: 20px;
+}
+
+.panel .p-hg-leyenda {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--panel-green);
+}
+
+.panel .p-hg-leyenda--todos {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.panel .p-hg-leyenda--todos::after {
+  content: "✓";
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: #0a0c12;
+}
+
+/* Checklist del día elegido */
+.panel .p-hlista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel .p-hlista[hidden] {
+  display: none;
+}
+
+.panel .p-hlista-fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.panel .p-hlista-fila .p-small {
+  margin-left: auto;
+}
+
+.panel .p-hcheck {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  box-sizing: border-box;
+  border: 2px solid var(--panel-muted);
+  border-radius: 50%;
+}
+
+.panel .p-hcheck--on {
+  background: var(--panel-green);
+  border-color: var(--panel-green);
+  color: #0a0c12;
+}
+
+.panel .p-hcheck--on::after {
+  content: "✓";
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ---------- Página de Salud (22/10) ----------
+   Fila 1: los tres datos y la nota del día; fila 2: hábitos (2/3) y ánimo; fila 3: tres gráficas iguales. */
+.panel .p-salud {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Arriba: cuatro columnas iguales; los datos y los hábitos ocupan tres y la columna de la derecha, una.
+   Así cada dato mide lo mismo que la nota del día y ninguna columna estira a la otra. */
+.panel .p-salud-arriba {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.panel .p-salud-main {
+  grid-column: span 3;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel .p-salud-aside {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel .p-salud-main > .p-card,
+.panel .p-salud-aside > .p-card {
+  flex: 0 0 auto;   /* como en .p-main y .p-aside: cada tarjeta mide lo que necesita */
+}
+
+/* Los hábitos crecen hasta el final de la columna derecha (sin hueco antes de la fila de abajo) y la gráfica
+   se alarga con ellos */
+.panel .p-salud-main > .p-card--wide {
+  flex: 1 1 auto;
+}
+
+.panel .p-salud-main .p-hab {
+  flex: 1 1 auto;
+  align-items: stretch;
+}
+
+.panel .p-salud-main .p-hg {
+  flex: 1 1 180px;
+  height: auto;
+  min-height: 180px;
+}
+
+.panel .p-salud-main .p-kpis {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.panel .p-salud > .p-actions {
+  margin-bottom: -8px;   /* los botones, más cerca de la nota que el resto de filas */
+}
+
+/* Ánimo en la columna estrecha: barras más juntas */
+.panel .p-salud-aside .p-bars,
+.panel .p-salud-aside .p-bars-labels {
+  gap: 4px;
+}
+
+/* Panel estrecho: todo en una columna */
+@media (max-width: 1000px) {
+  .panel .p-salud-arriba {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .panel .p-salud-main {
+    grid-column: auto;
+  }
+}
+
+.panel .p-salud-fila3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+/* En tres columnas las barras van más juntas */
+.panel .p-salud-fila3 .p-bars,
+.panel .p-salud-fila3 .p-bars-labels {
+  gap: 4px;
+}
+
+/* Títulos de las tarjetas de Salud: igual que dentro de .p-layout (sin el margen de Obsidian) */
+.panel .p-salud h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Si la cabecera ocupa dos líneas, la gráfica sigue alineada abajo con las de al lado */
+.panel .p-salud-fila3 .p-bars {
+  margin-top: auto;
+}
+
+/* ---------- Exámenes hechos (Estudios, 22/10): la calificación en grande, en el color del texto ---------- */
+.panel .p-nota {
+  flex: none;
+  min-width: 48px;
+  padding: 4px 10px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+}
+
+/* ---------- Calendario: detalle del día (22/10) ----------
+   Debajo del mes: lo que hay el día que tiene el ratón encima o el que se pulsó (al principio, hoy). */
+.panel .p-dia[data-dia] {
+  cursor: pointer;
+}
+
+.panel .p-dia[data-dia]:hover {
+  box-shadow: inset 0 0 0 1px var(--panel-muted);
+}
+
+.panel .p-dia--sel {
+  box-shadow: inset 0 0 0 2px var(--panel-accent);
+}
+
+.panel .p-cal-detalle {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--panel-border);
+}
+
+.panel .p-cal-ev {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel .p-cal-ev .p-small {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* ---------- Página de Estudios (22/10) ----------
+   Fila 1: próximos exámenes, exámenes hechos y calendario (tres columnas iguales); fila 2: asignaturas y tareas. */
+.panel .p-estudios {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.panel .p-estudios-fila1 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.panel .p-estudios-fila2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.panel .p-estudios h2 {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.panel .p-estudios h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Calendario más grande en Estudios */
+.panel .p-estudios .p-dia {
+  height: 44px;
+  font-size: 14px;
+}
+
+.panel .p-estudios .p-cal-grid {
+  gap: 8px;
+}
+
+/* Turnos de trabajo (Inicio): los de días ya pasados de la semana, más apagados */
+.panel .p-examen--pasado {
+  opacity: 0.55;
+}

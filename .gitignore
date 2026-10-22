@@ -1,0 +1,26 @@
+# Conexión con el puente de Google (contiene el SECRETO): nunca en Git
+Panel/Scripts/.puente/
+
+# Tus datos: el repositorio solo lleva el código y los ejemplos
+Panel/Diario/*
+Panel/Finanzas/Movimientos/*
+Panel/Tareas/*
+Panel/Calendario/*
+Proyectos/*
+Estudios/*
+!**/.gitkeep
+
+# Estado de la ventana de Obsidian y código de los plugins (se instalan desde Obsidian)
+.obsidian/workspace*.json
+.obsidian/plugins/*/main.js
+.obsidian/plugins/*/manifest.json
+.obsidian/plugins/*/styles.css
+.obsidian/cache
+.trash/
+
+# Notas de trabajo locales
+CLAUDE.md
+
+.DS_Store
+Thumbs.db
+desktop.ini
