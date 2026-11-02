@@ -1,0 +1,81 @@
+/* Estilo de las notas (todas menos las páginas del panel, que usan panel.css). Versión sencilla.
+   Chakra Petch en los títulos, Inter (incluida en Obsidian) para leer, y la paleta del panel.
+   El color de acento según el tipo de nota (propiedad cssclasses) solo se usa en enlaces,
+   viñetas y la línea bajo el título: nota-asignatura, nota-apuntes, nota-chuleta, nota-practica,
+   nota-proyecto, nota-referencia, nota-sistema, nota-indice. */
+
+:is(.markdown-preview-view, .markdown-source-view):not(.panel) {
+  --nota-acento: #4f86ff;
+
+  --font-text-theme: "Inter", "Segoe UI", sans-serif;
+  --font-text-size: 16px;
+  --line-height-normal: 1.7;
+  --file-line-width: 46rem;
+
+  --h1-font: "Chakra Petch", var(--font-interface);
+  --h2-font: "Chakra Petch", var(--font-interface);
+  --h3-font: "Chakra Petch", var(--font-interface);
+  --h4-font: "Chakra Petch", var(--font-interface);
+  --h1-size: 1.9em;
+  --h2-size: 1.35em;
+  --h3-size: 1.1em;
+  --h1-color: #ffffff;
+  --h2-color: #ffffff;
+  --h3-color: #e4e6ee;
+
+  --text-normal: #e4e6ee;
+  --text-muted: #9a9eb2;
+  --bold-color: #ffffff;
+  --link-color: var(--nota-acento);
+  --link-decoration: none;
+  --list-marker-color: var(--nota-acento);
+  --checkbox-color: var(--nota-acento);
+  --blockquote-border-color: var(--nota-acento);
+  --code-background: #1c1e26;
+  --table-border-color: #2a2d38;
+  --hr-color: #2a2d38;
+
+  background-color: #121318;
+}
+
+/* Color por tipo de nota */
+.nota-asignatura, .nota-apuntes { --nota-acento: #4f86ff; }
+.nota-chuleta  { --nota-acento: #ff5c6c; }
+.nota-practica { --nota-acento: #a26cf5; }
+.nota-proyecto, .nota-referencia { --nota-acento: #2ecc8f; }
+.nota-sistema  { --nota-acento: #9a9eb2; }
+.nota-indice   { --nota-acento: #f5a623; }
+
+/* Sin el nombre del archivo arriba: la nota ya lleva su # título */
+:is(.markdown-preview-view, .markdown-source-view)[class*="nota-"] .inline-title {
+  display: none;
+}
+
+/* Único adorno: una línea fina del color de la nota bajo el título principal */
+:is(.markdown-preview-view, .markdown-source-view):not(.panel) :is(h1, .HyperMD-header-1) {
+  padding-bottom: 0.3em;
+  border-bottom: 2px solid var(--nota-acento);
+}
+
+/* Algo más de aire antes de cada sección */
+:is(.markdown-preview-view, .markdown-source-view):not(.panel) :is(h2, .HyperMD-header-2) {
+  margin-top: 1.6em;
+}
+
+/* Bloques de código con esquinas redondeadas, sin bordes */
+.markdown-preview-view:not(.panel) pre {
+  border-radius: 8px;
+}
+
+/* Avisos (callouts): color difuminado que se desvanece hacia la derecha, sin bordes */
+:is(.markdown-preview-view, .markdown-source-view):not(.panel) .callout {
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(var(--callout-color), 0.16) 0%, rgba(var(--callout-color), 0.05) 60%, rgba(var(--callout-color), 0) 100%);
+}
+
+/* Colores de los avisos propios */
+.callout[data-callout="resumen"] { --callout-color: 79, 134, 255;  --callout-icon: lucide-zap; }
+.callout[data-callout="examen"]  { --callout-color: 255, 92, 108;  --callout-icon: lucide-target; }
+.callout[data-callout="ejemplo"] { --callout-color: 162, 108, 245; --callout-icon: lucide-code-2; }
+.callout[data-callout="ojo"]     { --callout-color: 245, 166, 35;  --callout-icon: lucide-alert-triangle; }

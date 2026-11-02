@@ -46,8 +46,8 @@ const tareasEstudio = await (async () => {
   return m.exports.tarjetaTareas(tareas, hoy, nombre, { titulo: "Tareas de estudio", categorias: ["clase"], categoriaNueva: "clase", h: "h2", vacio: "Sin tareas de clase todavía" });
 })();
 
-// Próximos exámenes y calendario del mes (Panel/Scripts/calendario/calculos.js, el mismo de Inicio). Los días de
-// gimnasio salen de las notas del día.
+// Próximos exámenes y calendario del mes (Panel/Scripts/calendario/calculos.js, el mismo de Inicio). Aquí el
+// calendario solo enseña lo de estudios, con su hora.
 const calendarioEstudios = await (async () => {
   const a = typeof app !== "undefined" ? app : dv.app;
   const codigo = await a.vault.adapter.read("Panel/Scripts/calendario/calculos.js");
@@ -57,18 +57,19 @@ const calendarioEstudios = await (async () => {
   const nombre = (() => { try { return a.vault.getName(); } catch (e) { return "Boveda"; } })();
   const hoy = (input && input.hoy) || new Date().getFullYear() + "-" + String(new Date().getMonth() + 1).padStart(2, "0") + "-" + String(new Date().getDate()).padStart(2, "0");
   const eventos = c.leerEventos(dv, (input && input.carpetaCalendario) || "Panel/Calendario");
-  const gym = c.diasGimnasio(dv, (input && input.carpetaDiario) || "Panel/Diario");
+  const soloExamenes = eventos.filter((e) => e.categoria === "examen");
+  const opciones = { estilo: "etiquetas", tipos: ["examen"] };
   return {
-    c, eventos, gym, hoy,
+    c, soloExamenes, opciones, hoy,
     examenes: c.tarjetaExamenes(eventos, hoy, nombre, { h: "h2", max: Infinity }),   // aquí todos; en Inicio, 6
     hechos: c.tarjetaExamenesHechos(eventos, hoy, nombre, { h: "h2" }),
-    calendario: c.tarjetaCalendario(eventos, gym, hoy),
+    calendario: c.tarjetaCalendario(soloExamenes, [], hoy, opciones),
   };
 })();
 
-// Disposición: arriba, en tres columnas, próximos exámenes, exámenes hechos y el calendario
-// (más grande, con el detalle del día); abajo, en dos columnas, asignaturas y tareas de estudio.
+// Disposición: primero el calendario, a todo el ancho y con el detalle del día; debajo, en dos columnas, próximos
+// exámenes y exámenes hechos; y abajo, también en dos columnas, asignaturas y tareas de estudio.
 dv.container.innerHTML =
-  `<div class="p-estudios"><div class="p-estudios-fila1">${calendarioEstudios.examenes}${calendarioEstudios.hechos}${calendarioEstudios.calendario}</div>` +
+  `<div class="p-estudios">${calendarioEstudios.calendario}<div class="p-estudios-fila1">${calendarioEstudios.examenes}${calendarioEstudios.hechos}</div>` +
   `<div class="p-estudios-fila2">${asignaturas}${tareasEstudio}</div></div>`;
-calendarioEstudios.c.activarCalendario(dv.container, calendarioEstudios.eventos, calendarioEstudios.gym, calendarioEstudios.hoy);   // botones de mes
+calendarioEstudios.c.activarCalendario(dv.container, calendarioEstudios.soloExamenes, [], calendarioEstudios.hoy, calendarioEstudios.opciones);   // botones de mes

@@ -21,6 +21,9 @@ const CFG = {
   calendario: "Panel/Calendario",
   diasEventosAntes: 30,      // eventos de calendario: desde hace 30 días...
   diasEventosDespues: 120,   // ...hasta dentro de 120
+  diasClasesAntes: 7,        // clases: la semana pasada...
+  diasClasesDespues: 60,     // ...y los dos meses siguientes
+  maxTextoNota: 10000,       // el mismo límite que en Puente.gs
   puente: "Panel/Scripts/.puente",
   diasSync: 14,        // días de salud que se traen en cada sincronización
   diasPrimera: 60,     // y en la primera, para que las gráficas de semanas tengan historia
@@ -31,6 +34,7 @@ const RUTA = {
   pendiente: CFG.puente + "/pendiente.json",
   rechazadas: CFG.puente + "/rechazadas.json",
   estado: CFG.puente + "/estado.json",
+  clases: CFG.puente + "/clases.json",       // clases de Google Calendar, solo para enseñarlas: no son notas
   configuracion: "Panel/Configuracion.md",   // ajustes del usuario (objetivos, título de los turnos…)
 };
 
@@ -150,6 +154,36 @@ function anadirNota(data, texto) {
   return antes + "\n\n" + texto + "\n" + (despues ? "\n" + despues : "");
 }
 
+// Dónde empieza y acaba una sección "## Título". ini es -1 si no está.
+function limitesSeccion(lineas, patron) {
+  const ini = lineas.findIndex((l) => patron.test(l));
+  let fin = lineas.length;
+  if (ini === -1) return { ini, fin };
+  for (let i = ini + 1; i < lineas.length; i++) {
+    if (/^##\s/.test(lineas[i])) { fin = i; break; }
+  }
+  return { ini, fin };
+}
+
+const RE_NOTAS = /^##\s+Notas\s*$/;
+
+// Texto de la sección "## Notas": es lo que se cruza con Google.
+function textoNotas(data) {
+  const lineas = String(data).replace(/\r\n/g, "\n").split("\n");
+  const { ini, fin } = limitesSeccion(lineas, RE_NOTAS);
+  return ini === -1 ? "" : lineas.slice(ini + 1, fin).join("\n").trim();
+}
+
+// Sustituye el texto de "## Notas" sin tocar el resto. Un "## " dentro del texto cortaría la sección: baja a "### ".
+function cambiarNotas(data, texto) {
+  const limpio = String(texto).replace(/^##(?=\s)/gm, "###");
+  const lineas = String(data).replace(/\r\n/g, "\n").split("\n");
+  const { ini, fin } = limitesSeccion(lineas, RE_NOTAS);
+  if (ini === -1) return limpio ? String(data).trimEnd() + "\n\n## Notas\n\n" + limpio + "\n" : data;
+  const despues = lineas.slice(fin).join("\n");
+  return lineas.slice(0, ini + 1).join("\n") + (limpio ? "\n\n" + limpio : "") + "\n" + (despues ? "\n" + despues : "");
+}
+
 // Datos de una nota del día en el formato del puente. Devuelve null si no hay nada que enviar.
 function notaADia(fecha, fm) {
   const dia = { fecha, habitos: {} };
@@ -253,16 +287,21 @@ function validarTarea(t) {
   return null;
 }
 
-// ---------- Eventos de calendario (exámenes y turnos de trabajo) ----------
+// ---------- Eventos de calendario (exámenes, turnos de trabajo y eventos propios) ----------
 // Una nota por evento en Panel/Calendario: tipo, id (el de Google Calendar), titulo, fecha, inicio y fin (fecha y
-// hora "AAAA-MM-DDTHH:MM"; faltan si es de todo el día), todo_el_dia, categoria (examen o trabajo),
-// calendario (examenes o trabajo) y notas. Las horas no se guardan como "09:00" suelto porque YAML puede leerlo
-// como un número. Los turnos de "trabajo" solo se pueden crear desde aquí (anadirTurno); se cambian y se borran en
-// Google Calendar.
+// hora "AAAA-MM-DDTHH:MM"; faltan si es de todo el día), todo_el_dia, categoria (examen, trabajo o agenda),
+// calendario (examenes, trabajo o agenda) y notas. Las horas no se guardan como "09:00" suelto porque YAML puede
+// leerlo como un número.
 const RE_HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 // El panel no usa entregas: todo lo del calendario de exámenes es un examen.
-const categoriaEvento = (e) => (e.calendario === "trabajo" ? "trabajo" : "examen");
+const categoriaEvento = (e) => (e.calendario === "trabajo" ? "trabajo" : e.calendario === "agenda" ? "agenda" : "examen");
+
+// Lo que cambia entre exámenes y eventos propios: cada uno tiene sus operaciones en el puente.
+const MODOS_EVENTO = {
+  examenes: { guardar: "guardarEvento", borrar: "borrarEvento", nombre: "examen", plural: "los exámenes", etiqueta: "Asignatura" },
+  agenda: { guardar: "guardarAgenda", borrar: "borrarAgenda", nombre: "evento", plural: "los eventos", etiqueta: "Título" },
+};
 
 function propsEvento(e) {
   return {
@@ -367,19 +406,25 @@ async function llamar(params, conexion, op, datos) {
 // ---------- Cola de pendientes ----------
 async function encolar(app, op, datos) {
   const cola = await leerJson(app, RUTA.pendiente, []);
-  if (op === "guardarDia") {
+  const conId = (x) => x.op !== "guardarDia" && x.op !== "guardarNotaDia";
+  if (op === "guardarNotaDia") {
+    // De una nota solo interesa su último texto
+    const i = cola.findIndex((x) => x.op === op && x.datos.fecha === datos.fecha);
+    if (i >= 0) cola.splice(i, 1);
+    cola.push({ op, datos });
+  } else if (op === "guardarDia") {
     const previo = cola.find((x) => x.op === "guardarDia" && x.datos.fecha === datos.fecha);
     if (previo) {
       if ("entreno" in datos) previo.datos.entreno = datos.entreno;
       if (datos.habitos) previo.datos.habitos = Object.assign(previo.datos.habitos || {}, datos.habitos);
     } else cola.push({ op, datos });
-  } else if (op === "guardarMovimiento" || op === "guardarTarea" || op === "guardarEvento") {
+  } else if (["guardarMovimiento", "guardarTarea", "guardarEvento", "guardarAgenda", "editarTurno"].includes(op)) {
     // Lo último que se guarda de un mismo elemento sustituye a lo anterior
-    const i = cola.findIndex((x) => x.op !== "guardarDia" && x.datos.id === datos.id);
+    const i = cola.findIndex((x) => conId(x) && x.datos.id === datos.id);
     if (i >= 0) cola.splice(i, 1);
     cola.push({ op, datos });
-  } else if (op === "borrarMovimiento" || op === "borrarTarea" || op === "borrarEvento") {
-    for (let i = cola.length - 1; i >= 0; i--) if (cola[i].op !== "guardarDia" && cola[i].datos.id === datos.id) cola.splice(i, 1);
+  } else if (["borrarMovimiento", "borrarTarea", "borrarEvento", "borrarAgenda", "borrarTurno"].includes(op)) {
+    for (let i = cola.length - 1; i >= 0; i--) if (conId(cola[i]) && cola[i].datos.id === datos.id) cola.splice(i, 1);
     cola.push({ op, datos });
   }
   await escribirJson(app, RUTA.pendiente, cola);
@@ -508,7 +553,57 @@ async function registrarDia(params) {
   });
   let estado = "";
   if ("entreno" in envio || Object.keys(envio.habitos).length) estado = await enviarOEncolar(params, "guardarDia", envio);
+  if (notas) {
+    const texto = textoNotas(await app.vault.read(archivo));
+    if (texto.length <= CFG.maxTextoNota) estado = await enviarOEncolar(params, "guardarNotaDia", { fecha, texto });
+  }
   aviso(params, "Registrado el " + fecha + (estado ? ": " + estado : ""));
+}
+
+// ---------- Acción: Marcar entreno ----------
+// Lo que hiciste un día, desde el plan de la semana. Con value-valor (pht, eba, pierna, descanso o quitar) va directo;
+// sin él pregunta. "No fui" y "Quitar registro" también llegan a Google: el plan se calcula con ellos.
+async function marcarEntreno(params) {
+  const { app, quickAddApi } = params;
+  const v = params.variables || {};
+  const fecha = fechaValida(v.dia) ? v.dia : hoyTexto();
+  let valor = v.valor;
+  if (!valor) {
+    const etiquetas = ENTRENOS.map((e) => "Hice " + e.nombre).concat(["No fui", "Quitar registro"]);
+    try { valor = await quickAddApi.suggester(etiquetas, ENTRENOS.map((e) => e.id).concat(["descanso", "quitar"])); } catch (e) { return; }
+    if (!valor) return;
+  }
+  const nombre = valor === "quitar" ? null : valor === "descanso" ? DESCANSO : nombreEntreno(valor);
+  if (valor !== "quitar" && !nombre) { aviso(params, "Entreno no válido"); return; }
+  const ruta = CFG.diario + "/" + fecha + ".md";
+  let archivo = app.vault.getAbstractFileByPath(ruta);
+  if (!archivo) archivo = await crearNotaDia(app, fecha);
+  await app.fileManager.processFrontMatter(archivo, (fm) => { fm.entreno = nombre; });
+  const estado = await enviarOEncolar(params, "guardarDia", { fecha, entreno: valor === "quitar" ? null : valor });
+  aviso(params, "Entreno del " + fecha + ": " + estado);
+}
+
+// ---------- Acción: Escribir nota ----------
+// Cambia el texto de "## Notas" de hoy. En Obsidian también se puede escribir en la nota: la sincronización lo sube.
+async function escribirNotaDia(params) {
+  const { app, quickAddApi } = params;
+  const fecha = hoyTexto();
+  const ruta = CFG.diario + "/" + fecha + ".md";
+  let archivo = app.vault.getAbstractFileByPath(ruta);
+  const actual = archivo ? textoNotas(await app.vault.read(archivo)) : "";
+  let r;
+  try {
+    r = await quickAddApi.requestInputs([
+      { id: "texto", label: "Nota de hoy", type: "textarea", rows: 8, defaultValue: actual, placeholder: "Qué has hecho, cómo te has sentido…", optional: true },
+    ]);
+  } catch (e) { return; }
+  const nuevo = String(r.texto || "").trim();
+  if (nuevo === actual) return;
+  if (nuevo.length > CFG.maxTextoNota) { aviso(params, "La nota es demasiado larga (máximo " + CFG.maxTextoNota + " caracteres)"); return; }
+  if (!archivo) archivo = await crearNotaDia(app, fecha);
+  await app.vault.process(archivo, (data) => cambiarNotas(data, nuevo));
+  const texto = textoNotas(await app.vault.read(archivo));
+  aviso(params, "Nota del día: " + await enviarOEncolar(params, "guardarNotaDia", { fecha, texto }));
 }
 
 // ---------- Acciones de finanzas ----------
@@ -686,9 +781,15 @@ async function borrarTarea(params) {
 }
 
 // ---------- Acciones de exámenes ----------
-function camposEvento(def) {
+// Día que llega en el enlace de la página Calendario (value-dia), para abrir el formulario con esa fecha ya puesta.
+const diaDelEnlace = (params) => {
+  const d = params.variables && params.variables.dia;
+  return d && fechaValida(String(d)) ? String(d) : hoyTexto();
+};
+
+function camposEvento(def, etiqueta) {
   return [
-    { id: "titulo", label: "Asignatura", type: "text", defaultValue: def.titulo || "" },
+    { id: "titulo", label: etiqueta, type: "text", defaultValue: def.titulo || "" },
     { id: "fecha", label: "Fecha (AAAA-MM-DD)", type: "text", defaultValue: def.fecha || hoyTexto() },
     { id: "hora", label: "Hora de inicio (HH:MM; vacío = todo el día)", type: "text", placeholder: "09:00", defaultValue: def.hora || "", optional: true },
     { id: "hora_fin", label: "Hora de fin (opcional)", type: "text", placeholder: "10:30", defaultValue: def.horaFin || "", optional: true },
@@ -696,10 +797,10 @@ function camposEvento(def) {
   ];
 }
 
-function leerFormEvento(r, id) {
+function leerFormEvento(r, id, clave) {
   const base = String(r.titulo || "").trim();
-  // El título lleva "Examen" delante ("Examen Historia"), como los que ya crea la app
-  const titulo = !base || norm(base).startsWith("examen") ? base : "Examen " + base;
+  // Los exámenes llevan "Examen" delante ("Examen Historia"), como los que ya crea la app
+  const titulo = clave !== "examenes" || !base || norm(base).startsWith("examen") ? base : "Examen " + base;
   const hora = String(r.hora || "").trim();
   return {
     id, titulo, fecha: String(r.fecha || "").trim(), todoElDia: hora === "",
@@ -708,31 +809,36 @@ function leerFormEvento(r, id) {
   };
 }
 
-async function anadirEvento(params) {
+const anadirEvento = (params) => crearEvento(params, "examenes");
+const anadirAgenda = (params) => crearEvento(params, "agenda");
+
+async function crearEvento(params, clave) {
   const { app, quickAddApi } = params;
+  const modo = MODOS_EVENTO[clave];
   const conexion = await cargarConexion(params);
-  if (!conexion) { aviso(params, "Configura el puente: los exámenes se crean en Google Calendar"); return; }
+  if (!conexion) { aviso(params, "Configura el puente: " + modo.plural + " se crean en Google Calendar"); return; }
   let r;
-  try { r = await quickAddApi.requestInputs(camposEvento({})); }
+  try { r = await quickAddApi.requestInputs(camposEvento({ fecha: diaDelEnlace(params) }, modo.etiqueta)); }
   catch (e) { return; }
-  const e = leerFormEvento(r, null);
+  const e = leerFormEvento(r, null, clave);
   const error = validarEvento(e);
   if (error) { aviso(params, error); return; }
   // Crear necesita conexión: el id lo da Google Calendar, así que no se puede dejar en la cola
   const datos = { titulo: e.titulo, fecha: e.fecha, todoElDia: e.todoElDia, horaInicio: e.horaInicio, horaFin: e.horaFin, notas: e.notas };
-  const res = await llamar(params, conexion, "guardarEvento", datos);
-  if (res.sinConexion) { aviso(params, "No se creó: crear un examen necesita conexión"); return; }
+  const res = await llamar(params, conexion, modo.guardar, datos);
+  if (res.sinConexion) { aviso(params, "No se creó: crear un " + modo.nombre + " necesita conexión"); return; }
   if (res.respuestaRara) { aviso(params, "No se creó: " + textoErrorCola(res)); return; }
   if (!res.ok) {
     aviso(params, "No se creó: " + (res.error === "no autorizado" ? textoErrorCola({ noAutorizado: true }) : res.error === "operación no válida" ? textoErrorCola({ puenteAntiguo: true }) : res.error));
     return;
   }
-  e.id = res.id; e.calendario = "examenes";
+  e.id = res.id; e.calendario = clave;
   await escribirNotaEvento(app, e, null);
   aviso(params, "«" + e.titulo + "» creado el " + e.fecha + " y enviado a Google Calendar");
 }
 
-// Elige un examen (del calendario "Exámenes y entregas" de Google): por el id del enlace (value-id) o de una lista.
+// Elige un evento: el del id del enlace (value-id; desde la página Calendario, de cualquier calendario) o un examen
+// de una lista. Las acciones "Editar examen" y "Borrar examen" sirven para todos: miran de qué calendario es.
 async function elegirEvento(params) {
   const { app, quickAddApi } = params;
   const porId = notasDeEventos(app);
@@ -751,9 +857,6 @@ async function elegirEvento(params) {
     if (!elegido) return null;
     sel = { id: elegido.id, archivo: elegido.archivo };
   }
-  if (eventoDeNota(frontmatterDe(app, sel.archivo)).calendario !== "examenes") {
-    aviso(params, "Los turnos de Trabajo solo se pueden cambiar en Google Calendar"); return null;
-  }
   return sel;
 }
 
@@ -762,15 +865,18 @@ async function editarEvento(params) {
   const sel = await elegirEvento(params);
   if (!sel) return;
   const actual = eventoDeNota(frontmatterDe(app, sel.archivo));
+  if (actual.calendario === "trabajo") { await editarTurno(params, sel, actual); return; }
+  const clave = actual.calendario === "agenda" ? "agenda" : "examenes";
+  const modo = MODOS_EVENTO[clave];
   let r;
-  try { r = await quickAddApi.requestInputs(camposEvento({ titulo: sinPrefijo(actual.titulo), fecha: actual.fecha, hora: actual.horaInicio, horaFin: actual.horaFin, notas: actual.notas })); }
+  try { r = await quickAddApi.requestInputs(camposEvento({ titulo: clave === "examenes" ? sinPrefijo(actual.titulo) : actual.titulo, fecha: actual.fecha, hora: actual.horaInicio, horaFin: actual.horaFin, notas: actual.notas }, modo.etiqueta)); }
   catch (e) { return; }
-  const e = leerFormEvento(r, sel.id);
-  e.calendario = "examenes";
+  const e = leerFormEvento(r, sel.id, clave);
+  e.calendario = clave;
   const error = validarEvento(e);
   if (error) { aviso(params, error); return; }
   await escribirNotaEvento(app, e, sel.archivo);
-  const estado = await enviarOEncolar(params, "guardarEvento", { id: e.id, titulo: e.titulo, fecha: e.fecha, todoElDia: e.todoElDia, horaInicio: e.horaInicio, horaFin: e.horaFin, notas: e.notas });
+  const estado = await enviarOEncolar(params, modo.guardar, { id: e.id, titulo: e.titulo, fecha: e.fecha, todoElDia: e.todoElDia, horaInicio: e.horaInicio, horaFin: e.horaFin, notas: e.notas });
   aviso(params, "«" + e.titulo + "» actualizado: " + estado);
 }
 
@@ -783,13 +889,47 @@ async function borrarEvento(params) {
   try { confirmado = await quickAddApi.yesNoPrompt("Borrar del calendario", "¿Borrar «" + e.titulo + "» (" + e.fecha + ")? Se borra también de Google Calendar."); } catch (err) { return; }
   if (!confirmado) return;
   await app.fileManager.trashFile(sel.archivo);   // a la papelera de Obsidian: se puede recuperar la nota (el evento de Google no)
-  const estado = await enviarOEncolar(params, "borrarEvento", { id: sel.id });
+  const op = e.calendario === "trabajo" ? "borrarTurno" : MODOS_EVENTO[e.calendario === "agenda" ? "agenda" : "examenes"].borrar;
+  const estado = await enviarOEncolar(params, op, { id: sel.id });
   aviso(params, "Evento borrado: " + estado);
 }
 
 // ---------- Turnos de trabajo ----------
-// Solo se crean (el puente no deja cambiar ni borrar turnos: eso se hace en Google Calendar). Crear necesita
-// conexión, porque el id lo da Google; después se escribe su nota como la de cualquier evento de "Trabajo".
+// Crear necesita conexión, porque el id lo da Google; después se escribe su nota como la de cualquier evento de
+// "Trabajo". Editarlos y borrarlos va por operaciones propias del puente, que solo buscan en ese calendario.
+const camposTurno = (def) => [
+  { id: "fecha", label: "Fecha (AAAA-MM-DD)", type: "text", defaultValue: def.fecha },
+  { id: "hora", label: "Hora de entrada (HH:MM)", type: "text", placeholder: "16:00", defaultValue: def.hora || "" },
+  { id: "hora_fin", label: "Hora de salida (HH:MM)", type: "text", placeholder: "20:00", defaultValue: def.horaFin || "" },
+  { id: "titulo", label: "Título", type: "text", defaultValue: def.titulo },
+];
+
+const leerFormTurno = (r) => ({
+  titulo: String(r.titulo || "").trim(), fecha: String(r.fecha || "").trim(),
+  horaInicio: String(r.hora || "").trim(), horaFin: String(r.hora_fin || "").trim(),
+});
+
+function validarTurno(t) {
+  if (!t.titulo || t.titulo.length > 80) return "El título es obligatorio (máximo 80 caracteres)";
+  if (!fechaValida(t.fecha)) return "Fecha no válida: escribe AAAA-MM-DD";
+  if (!RE_HORA.test(t.horaInicio)) return "La hora de entrada debe ser HH:MM (por ejemplo 16:00)";
+  if (!RE_HORA.test(t.horaFin) || t.horaFin <= t.horaInicio) return "La hora de salida debe ser HH:MM y posterior a la de entrada";
+  return null;
+}
+
+async function editarTurno(params, sel, actual) {
+  const { app, quickAddApi } = params;
+  let r;
+  try { r = await quickAddApi.requestInputs(camposTurno({ fecha: actual.fecha, hora: actual.horaInicio, horaFin: actual.horaFin, titulo: actual.titulo })); }
+  catch (e) { return; }
+  const t = leerFormTurno(r);
+  const error = validarTurno(t);
+  if (error) { aviso(params, error); return; }
+  await escribirNotaEvento(app, { id: sel.id, titulo: t.titulo, fecha: t.fecha, todoElDia: false, horaInicio: t.horaInicio, horaFin: t.horaFin, calendario: "trabajo", notas: "" }, sel.archivo);
+  const estado = await enviarOEncolar(params, "editarTurno", Object.assign({ id: sel.id }, t));
+  aviso(params, "«" + t.titulo + "» actualizado: " + estado);
+}
+
 async function anadirTurno(params) {
   const { app, quickAddApi } = params;
   const conexion = await cargarConexion(params);
@@ -798,22 +938,11 @@ async function anadirTurno(params) {
   const cfg = app.vault.getAbstractFileByPath(RUTA.configuracion);
   const tituloTurno = (cfg && String(frontmatterDe(app, cfg).titulo_turno || "").trim()) || "Turno";
   let r;
-  try {
-    r = await quickAddApi.requestInputs([
-      { id: "fecha", label: "Fecha (AAAA-MM-DD)", type: "text", defaultValue: hoyTexto() },
-      { id: "hora", label: "Hora de entrada (HH:MM)", type: "text", placeholder: "16:00" },
-      { id: "hora_fin", label: "Hora de salida (HH:MM)", type: "text", placeholder: "20:00" },
-      { id: "titulo", label: "Título", type: "text", defaultValue: tituloTurno },
-    ]);
-  } catch (e) { return; }
-  const t = {
-    titulo: String(r.titulo || "").trim(), fecha: String(r.fecha || "").trim(),
-    horaInicio: String(r.hora || "").trim(), horaFin: String(r.hora_fin || "").trim(),
-  };
-  if (!t.titulo || t.titulo.length > 80) { aviso(params, "El título es obligatorio (máximo 80 caracteres)"); return; }
-  if (!fechaValida(t.fecha)) { aviso(params, "Fecha no válida: escribe AAAA-MM-DD"); return; }
-  if (!RE_HORA.test(t.horaInicio)) { aviso(params, "La hora de entrada debe ser HH:MM (por ejemplo 16:00)"); return; }
-  if (!RE_HORA.test(t.horaFin) || t.horaFin <= t.horaInicio) { aviso(params, "La hora de salida debe ser HH:MM y posterior a la de entrada"); return; }
+  try { r = await quickAddApi.requestInputs(camposTurno({ fecha: diaDelEnlace(params), titulo: tituloTurno })); }
+  catch (e) { return; }
+  const t = leerFormTurno(r);
+  const error = validarTurno(t);
+  if (error) { aviso(params, error); return; }
   const res = await llamar(params, conexion, "guardarTurno", t);
   if (res.sinConexion) { aviso(params, "No se creó: crear un turno necesita conexión"); return; }
   if (res.respuestaRara) { aviso(params, "No se creó: " + textoErrorCola(res)); return; }
@@ -867,11 +996,96 @@ async function ponerNotaExamen(params) {
   aviso(params, "«" + fm.titulo + "»: " + (nota === null ? "sin calificación" : "nota " + String(nota).replace(".", ",")) + " guardada en Obsidian");
 }
 
+// ---------- Notas del día en los dos sentidos ----------
+// base guarda el texto de cada día tras la última sincronización, para saber qué lado cambió. Si cambiaron los dos,
+// gana lo último que se guardó. Devuelve la base nueva.
+async function cruzarNotasDia(params, conexion, filas, desde, nDias, base) {
+  const { app } = params;
+  const enGoogle = {};
+  filas.forEach((n) => { enGoogle[n.fecha] = n; });
+  const nueva = {};
+  let hayEnvios = false;
+  for (let i = 0; i < nDias; i++) {
+    const fecha = ymd(sumarDias(parseFecha(desde), i));
+    const sd = enGoogle[fecha];
+    let archivo = app.vault.getAbstractFileByPath(CFG.diario + "/" + fecha + ".md");
+    if (!archivo && !sd) continue;
+    if (archivo && frontmatterDe(app, archivo).ejemplo === true) continue;
+    const local = archivo ? textoNotas(await app.vault.read(archivo)) : "";
+    const google = sd ? String(sd.texto).trim() : "";
+    const antes = base[fecha] || "";
+    nueva[fecha] = local;
+    if (local === google) continue;
+    const cambioLocal = local !== antes, cambioGoogle = google !== antes;
+    const horaLocal = archivo && archivo.stat ? archivo.stat.mtime : 0;
+    if (cambioLocal && (!cambioGoogle || horaLocal > (sd ? sd.actualizada : 0))) {
+      // Una nota que el puente rechazaría se queda como "cambio pendiente": si no, parecería borrada en Google.
+      if (local.length > CFG.maxTextoNota) { nueva[fecha] = antes; continue; }
+      await encolar(app, "guardarNotaDia", { fecha, texto: local });
+      hayEnvios = true;
+    } else {
+      if (!archivo) archivo = await crearNotaDia(app, fecha);
+      await app.vault.process(archivo, (data) => cambiarNotas(data, google));
+      nueva[fecha] = textoNotas(await app.vault.read(archivo));
+    }
+  }
+  if (hayEnvios) await vaciarCola(params, conexion);
+  return nueva;
+}
+
+// ---------- Espejo: lo que solo vive en Obsidian, para que la web lo enseñe ----------
+const huella = (texto) => { let h = 0; for (let i = 0; i < texto.length; i++) h = (h * 31 + texto.charCodeAt(i)) | 0; return h; };
+const elegir = (fm, claves) => Object.fromEntries(claves.filter((k) => fm[k] !== undefined && fm[k] !== null).map((k) => [k, fm[k]]));
+
+// Hay notas de sobra en la bóveda: solo va lo que las páginas enseñan. De un proyecto, su plan; de un examen ya hecho,
+// la nota entera, porque la calificación solo vive aquí y Google solo devuelve los últimos 30 días.
+async function notasDelEspejo(app) {
+  const hoy = hoyTexto();
+  const notas = [];
+  for (const f of app.vault.getMarkdownFiles()) {
+    const fm = frontmatterDe(app, f);
+    if (f.path === RUTA.configuracion) {
+      const { position, ...resto } = fm;
+      notas.push({ ruta: f.path, fm: resto, cuerpo: "" });
+    } else if (f.path.startsWith("Proyectos/") && fm.tipo === "proyecto") {
+      const lineas = String(await app.vault.read(f)).replace(/\r\n/g, "\n").split("\n");
+      const { ini, fin } = limitesSeccion(lineas, /^##\s+Plan para terminar\s*$/);
+      notas.push({ ruta: f.path, fm: elegir(fm, ["tipo", "estado", "situacion", "siguiente_paso", "progreso"]), cuerpo: ini === -1 ? "" : lineas.slice(ini, fin).join("\n") });
+    } else if (f.path.startsWith("Estudios/") && fm.asignatura && ["asignatura", "apuntes", "chuleta", "practica"].includes(fm.tipo)) {
+      notas.push({ ruta: f.path, fm: elegir(fm, ["tipo", "asignatura"]), cuerpo: "" });
+    } else if (f.path.startsWith(CFG.calendario + "/") && fm.tipo === "evento" && fm.categoria === "examen" && String(fm.fecha || "").slice(0, 10) < hoy) {
+      const { position, ...resto } = fm;
+      notas.push({ ruta: f.path, fm: resto, cuerpo: "" });
+    }
+  }
+  return notas.sort((a, b) => a.ruta.localeCompare(b.ruta));
+}
+
+// Sube el espejo solo si cambió. Devuelve la huella de lo que ya hay en Google y, si falló, un aviso.
+async function subirEspejo(params, conexion, anterior) {
+  const notas = await notasDelEspejo(params.app);
+  if (!notas.some((n) => n.ruta === RUTA.configuracion)) return { huella: anterior, aviso: "" };   // bóveda a medio cargar
+  const actual = huella(JSON.stringify(notas));
+  if (actual === anterior) return { huella: anterior, aviso: "" };
+  const r = await llamar(params, conexion, "guardarEspejo", { notas });
+  if (r.ok) return { huella: actual, aviso: "" };
+  const motivo = r.error === "operación no válida" ? textoErrorCola({ puenteAntiguo: true }) : r.error || "sin conexión";
+  return { huella: anterior, aviso: " Proyectos y Estudios no llegaron a la web: " + motivo + "." };
+}
+
 // ---------- Acción: Sincronizar ----------
+// Solo una a la vez: la automática puede coincidir con el botón. La librería se carga de nuevo en cada acción, así que
+// la marca vive fuera. Con params.silencio no se enseña el resumen, solo los fallos y los avisos que lleva detrás.
 async function sincronizar(params) {
+  if (globalThis.panelSincronizando) return;
+  globalThis.panelSincronizando = true;
+  try { await sincronizarAhora(params); } finally { globalThis.panelSincronizando = false; }
+}
+
+async function sincronizarAhora(params) {
   const { app } = params;
   const conexion = await cargarConexion(params);
-  if (!conexion) { aviso(params, "El puente no está configurado: ejecuta «Configurar puente»"); return; }
+  if (!conexion) { if (!params.silencio) aviso(params, "El puente no está configurado: ejecuta «Configurar puente»"); return; }
 
   // Primera vez: lo que ya hay en las notas se envía a la app (antes de traer nada, para no pisarlo).
   const estado = await leerJson(app, RUTA.estado, null);
@@ -905,7 +1119,11 @@ async function sincronizar(params) {
   const desde = ymd(sumarDias(parseFecha(hoy), -(nDias - 1)));
   const evDesde = ymd(sumarDias(parseFecha(hoy), -CFG.diasEventosAntes));
   const evHasta = ymd(sumarDias(parseFecha(hoy), CFG.diasEventosDespues));
-  const r = await llamar(params, conexion, "leer", { desde, hasta: hoy, eventosDesde: evDesde, eventosHasta: evHasta });
+  const r = await llamar(params, conexion, "leer", {
+    desde, hasta: hoy, eventosDesde: evDesde, eventosHasta: evHasta,
+    clasesDesde: ymd(sumarDias(parseFecha(hoy), -CFG.diasClasesAntes)), clasesHasta: ymd(sumarDias(parseFecha(hoy), CFG.diasClasesDespues)),
+    conEspejo: Boolean(params.recibirEspejo),
+  });
   if (r.sinConexion) { aviso(params, "No se sincronizó: sin conexión"); return; }
   if (!r.ok) { aviso(params, "No se sincronizó: " + (r.error === "no autorizado" ? textoErrorCola({ noAutorizado: true }) : r.respuestaRara ? textoErrorCola(r) : r.error)); return; }
 
@@ -922,7 +1140,7 @@ async function sincronizar(params) {
     const actual = archivo ? frontmatterDe(app, archivo) : {};
     if (actual.ejemplo === true) continue;   // las notas de ejemplo nunca se tocan
     const deseado = {};
-    const nombre = sd && sd.entreno ? nombreEntreno(sd.entreno) : null;
+    const nombre = !sd || !sd.entreno ? null : sd.entreno === "descanso" ? DESCANSO : nombreEntreno(sd.entreno);
     deseado.entreno = nombre || (idEntreno(actual.entreno) === "descanso" ? actual.entreno : null);
     Object.keys(HABITOS).forEach((h) => {
       const [prop, , , esSiNo] = HABITOS[h];
@@ -1030,11 +1248,21 @@ async function sincronizar(params) {
     }
   }
 
-  await escribirJson(app, RUTA.estado, { ultima: new Date().toISOString() });
+  // 7. Clases, 8. notas del día y 9. espejo. Un puente antiguo no los devuelve: esos pasos se saltan.
+  if (Array.isArray(r.clases)) await escribirJson(app, RUTA.clases, r.clases);
+  const notasPrevias = (estado && estado.notas) || {};
+  const notasNuevas = Array.isArray(r.notasDia) ? await cruzarNotasDia(params, conexion, r.notasDia, desde, nDias, notasPrevias) : notasPrevias;
+  let espejo = { huella: estado ? estado.espejo : null, aviso: "" };
+  if (params.recibirEspejo) params.recibirEspejo(r.espejo || []);
+  else espejo = await subirEspejo(params, conexion, espejo.huella);
+
+  await escribirJson(app, RUTA.estado, { ultima: new Date().toISOString(), notas: notasNuevas, espejo: espejo.huella });
+  const avisos = (avisoTareas + avisoEventos + espejo.aviso).trim();
+  if (params.silencio) { if (avisos) aviso(params, avisos); return; }
   aviso(params, "Sincronizado: " + envio.enviadas + " enviados, " + resumen.dias + " días ajustados, " +
     resumen.creados + " creados, " + resumen.actualizados + " movimientos actualizados, " + resumen.borrados + " borrados; tareas: " +
     tr.nuevas + " nuevas, " + tr.actualizadas + " actualizadas, " + tr.borradas + " borradas; calendario: " +
-    ev.nuevos + " nuevos, " + ev.actualizados + " actualizados, " + ev.borrados + " borrados." + avisoTareas + avisoEventos);
+    ev.nuevos + " nuevos, " + ev.actualizados + " actualizados, " + ev.borrados + " borrados." + (avisos ? " " + avisos : ""));
 }
 
 // ---------- Acción: Configurar puente ----------
@@ -1060,7 +1288,7 @@ async function configurarPuente(params) {
 module.exports = {
   registrarDia, sincronizar, configurarPuente, anadirMovimiento, editarMovimiento, borrarMovimiento,
   anadirTarea, editarTarea, marcarTarea, borrarTarea,
-  anadirEvento, editarEvento, borrarEvento, ponerNotaExamen, anadirTurno,
+  anadirEvento, anadirAgenda, editarEvento, borrarEvento, ponerNotaExamen, anadirTurno, escribirNotaDia, marcarEntreno,
   // para las pruebas
-  _interno: { anadirNota, notaADia, idEntreno, validarMovimiento, firmar, encolar, vaciarCola },
+  _interno: { anadirNota, textoNotas, cambiarNotas, notaADia, idEntreno, validarMovimiento, firmar, encolar, vaciarCola },
 };

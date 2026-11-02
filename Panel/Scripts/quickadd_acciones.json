@@ -300,6 +300,86 @@
           }
         ]
       }
+    },
+    {
+      "id": "4004ab80-dba1-40d5-bca0-3d08997ec87e",
+      "name": "Anadir agenda",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "id": "1698f242-e168-4aca-906c-8524f9760e29",
+        "name": "Anadir agenda",
+        "commands": [
+          {
+            "id": "edddf162-01a7-4d32-8b3d-e39b68989969",
+            "name": "anadir_agenda",
+            "type": "UserScript",
+            "path": "Panel/Scripts/anadir_agenda.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "aaaae12b-f868-4763-88df-af4d0c072934",
+      "name": "Escribir nota",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "id": "8b661b89-a969-4f47-a8c6-4dbc7a32b2ac",
+        "name": "Escribir nota",
+        "commands": [
+          {
+            "id": "2f965bb2-8551-44d0-b374-61a852568a41",
+            "name": "escribir_nota",
+            "type": "UserScript",
+            "path": "Panel/Scripts/escribir_nota.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "f95e6ffc-f3f5-46a5-a4b4-22d433b8be2f",
+      "name": "Marcar entreno",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "id": "b44a7be1-a58f-411d-aacf-f4722ff7016c",
+        "name": "Marcar entreno",
+        "commands": [
+          {
+            "id": "a83e85b2-1983-4513-a2f0-35546cc963b5",
+            "name": "marcar_entreno",
+            "type": "UserScript",
+            "path": "Panel/Scripts/marcar_entreno.js",
+            "settings": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "a37a47a9-5cbe-4ea6-aadd-2a20d2f587ac",
+      "name": "Sincronizar solo",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": true,
+      "macro": {
+        "id": "06a344c7-4e42-4ca1-ba51-f6d638bbc123",
+        "name": "Sincronizar solo",
+        "commands": [
+          {
+            "id": "45774396-ee1d-4cec-a292-91147baecf40",
+            "name": "sincronizar_auto",
+            "type": "UserScript",
+            "path": "Panel/Scripts/sincronizar_auto.js",
+            "settings": {}
+          }
+        ]
+      }
     }
   ]
 }

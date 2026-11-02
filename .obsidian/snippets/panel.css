@@ -133,6 +133,7 @@
 .panel-inicio .callout[data-callout="nav"] a[data-href="Panel - Inicio"],
 .panel-salud .callout[data-callout="nav"] a[data-href="Panel - Salud"],
 .panel-estudios .callout[data-callout="nav"] a[data-href="Panel - Estudios"],
+.panel-calendario .callout[data-callout="nav"] a[data-href="Panel - Calendario"],
 .panel-proyectos .callout[data-callout="nav"] a[data-href="Panel - Proyectos"],
 .panel-finanzas .callout[data-callout="nav"] a[data-href="Panel - Finanzas"] {
   background: var(--panel-accent);
@@ -227,6 +228,56 @@
 
 .panel .p-card--note .p-muted {
   color: #ffffff;
+}
+
+/* En Inicio la nota del día va la primera, a todo el ancho */
+.panel .p-inicio-nota {
+  margin-bottom: 16px;
+}
+
+.panel .p-nota-enlaces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+/* Horario de clases en la lista de la semana: plegado y aparte de los eventos */
+.panel .p-sem-clases {
+  padding-top: 6px;
+  border-top: 1px solid var(--panel-border);
+}
+
+.panel .p-sem-clases summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--panel-muted);
+  cursor: pointer;
+}
+
+.panel .p-sem-clases summary::after {
+  content: "›";
+  font-size: 16px;
+  line-height: 1;
+}
+
+.panel .p-sem-clases[open] summary::after {
+  transform: rotate(90deg);
+}
+
+.panel .p-sem-clases summary .p-label {
+  flex: 1;
+}
+
+.panel .p-sem-clases .p-cal-ev {
+  margin-top: 6px;
+}
+
+.panel .p-inicio-nota h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .panel .p-head {
@@ -943,18 +994,63 @@
 
 .panel .p-dia {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  height: 34px;
+  gap: 3px;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 40px;
+  padding-top: 4px;
   border-radius: 8px;
   font-size: 12px;
+  line-height: 14px;
   color: var(--panel-text);
 }
 
-.panel .p-dia--examen { background: var(--panel-red); color: #121318; font-weight: 600; }
-.panel .p-dia--trabajo { background: var(--panel-amber); color: #121318; font-weight: 600; }
-.panel .p-dia--gym { background: var(--panel-green); color: #121318; font-weight: 600; }
 .panel .p-dia--hoy { outline: 2px solid #ffffff; outline-offset: 1px; }
+
+.panel .p-dia-marcas {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 72%;
+}
+
+/* Estilo A (Inicio): una barra por cada cosa del día. El color tiene su leyenda debajo. */
+.panel .p-cal-grid--barras .p-marca {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.panel .p-marca--examen { background: var(--panel-red); }
+.panel .p-marca--trabajo { background: var(--panel-amber); }
+.panel .p-marca--agenda { background: var(--panel-purple); }
+.panel .p-marca--gym { background: var(--panel-green); }
+.panel .p-marca--mas { background: var(--panel-muted); }
+
+/* Estilo C (Estudios): cada cosa con su hora de inicio */
+.panel .p-cal-grid--etiquetas .p-dia {
+  min-height: 48px;
+  padding: 4px 1px;
+  background: var(--panel-bg);
+}
+
+.panel .p-cal-grid--etiquetas .p-dia-marcas {
+  width: 100%;
+}
+
+.panel .p-cal-grid--etiquetas .p-marca {
+  display: block;
+  overflow: hidden;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 15px;
+  text-align: center;
+  white-space: nowrap;
+  color: #121318;
+}
 
 /* La tabla de Obsidian trae márgenes propios que abren un hueco bajo el título */
 .panel .p-table,
@@ -979,6 +1075,91 @@
 .panel .p-tag--3 { color: #b98cff; }
 .panel .p-tag--4 { color: #ff8fc7; }
 .panel .p-tag--5 { color: #c3c6d4; }
+
+/* ---------- Página Calendario (2/11) ----------
+   Mes grande a la izquierda (etiquetas con hora y título) y la semana del día elegido a la derecha. */
+.panel .p-calendario {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.panel .p-cal-mes {
+  flex: 2 1 520px;
+  min-width: 0;
+}
+
+.panel .p-cal-lado {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.panel .p-sem-dia {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.panel .p-sem-dia--sel {
+  background: var(--panel-bg);
+}
+
+.panel .p-sem-dia--hoy {
+  border-color: var(--panel-accent);
+}
+
+.panel .p-sem-eventos {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.panel .p-sem-hoy {
+  color: var(--panel-accent);
+  font-weight: 600;
+}
+
+/* Acciones del día pulsado: editar y borrar sus exámenes y añadir */
+.panel .p-sem-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12px;
+}
+
+.panel .p-cal-lado .p-cal-detalle {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.panel .p-calendario .p-cal-grid--etiquetas .p-dia {
+  min-height: 96px;
+  padding: 6px 4px;
+  font-size: 14px;
+}
+
+.panel .p-calendario .p-marca {
+  padding: 2px 4px;
+  text-align: left;
+}
+
+.panel .p-calendario .p-marca--mas {
+  text-align: center;
+}
+
+/* El título, en su propia línea bajo la hora */
+.panel .p-marca-titulo {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
 
 /* ---------- Hábitos: gráfica de los últimos 14 días y checklist del día (22/10) ----------
    La dibuja Panel/Scripts/salud/view.js. El SVG (rejilla, área y línea) se estira al ancho; los puntos
@@ -1250,9 +1431,60 @@
   gap: 16px;
 }
 
-.panel .p-salud-main > .p-card,
-.panel .p-salud-aside > .p-card {
+.panel .p-salud-main > .p-card {
   flex: 0 0 auto;   /* como en .p-main y .p-aside: cada tarjeta mide lo que necesita */
+}
+
+/* Plan del gimnasio: un día por fila, en el color de su estado. Llena la columna derecha */
+.panel .p-salud-aside > .p-card.p-plan {
+  flex: 1 1 auto;
+  gap: 8px;
+}
+
+.panel .p-plan-dia {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.panel .p-plan-dia--hoy {
+  padding: 6px;
+  margin: 0 -6px;
+  border: 1px solid var(--panel-accent);
+  border-radius: 10px;
+}
+
+.panel .p-plan-cuerpo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel .p-plan-dia--pasado .p-plan-cuerpo,
+.panel .p-plan-dia--descanso .p-plan-cuerpo {
+  color: var(--panel-muted);
+}
+
+.panel .p-plan-estado {
+  color: var(--panel-muted);
+}
+
+.panel .p-plan-dia--hecho .p-plan-estado {
+  color: var(--panel-green);
+}
+
+.panel .p-plan-dia--fallado .p-plan-estado {
+  color: var(--panel-red);
+}
+
+.panel .p-plan-dia--hoy.p-plan-dia--plan .p-plan-estado {
+  color: var(--panel-accent);
+}
+
+.panel .p-plan-aviso {
+  color: var(--panel-amber);
 }
 
 /* Los hábitos crecen hasta el final de la columna derecha (sin hueco antes de la fila de abajo) y la gráfica
@@ -1277,13 +1509,7 @@
 }
 
 .panel .p-salud > .p-actions {
-  margin-bottom: -8px;   /* los botones, más cerca de la nota que el resto de filas */
-}
-
-/* Ánimo en la columna estrecha: barras más juntas */
-.panel .p-salud-aside .p-bars,
-.panel .p-salud-aside .p-bars-labels {
-  gap: 4px;
+  margin-bottom: -8px;   /* los botones, más cerca de las tarjetas que el resto de filas */
 }
 
 /* Panel estrecho: todo en una columna */
@@ -1401,16 +1627,6 @@
   font-weight: 600;
 }
 
-/* Calendario más grande en Estudios */
-.panel .p-estudios .p-dia {
-  height: 44px;
-  font-size: 14px;
-}
-
-.panel .p-estudios .p-cal-grid {
-  gap: 8px;
-}
-
 /* Turnos de trabajo (Inicio): los de días ya pasados de la semana, más apagados */
 .panel .p-examen--pasado {
   opacity: 0.55;
@@ -1424,4 +1640,12 @@
   border-radius: 12px;
   background: rgba(79, 134, 255, 0.08);
   font-size: 14px;
+}
+
+/* Botón Hoy de la página Calendario, junto a las flechas del mes */
+.panel .p-mes-btn--hoy {
+  width: auto;
+  margin-left: auto;
+  padding: 0 10px;
+  font-size: 12px;
 }

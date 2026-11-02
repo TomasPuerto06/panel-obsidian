@@ -4,7 +4,7 @@
 // adopte el mismo diseño.
 //
 // Cada evento es una nota de Panel/Calendario (ver panel_lib.js): tipo: evento, id, titulo, fecha, inicio, fin,
-// todo_el_dia, categoria (examen o trabajo), calendario y notas. El panel no usa entregas.
+// todo_el_dia, categoria (examen, trabajo o agenda), calendario y notas. El panel no usa entregas.
 
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 const MESES_CORTO = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -34,7 +34,7 @@ function leerEventos(dv, carpeta) {
     if (p.tipo !== "evento" || !p.id || !fecha || !p.titulo) continue;
     out.push({
       id: String(p.id), titulo: String(p.titulo), fecha, horaInicio: horaTexto(p.inicio), horaFin: horaTexto(p.fin),
-      todoElDia: p.todo_el_dia === true, categoria: p.categoria === "trabajo" ? "trabajo" : "examen",
+      todoElDia: p.todo_el_dia === true, categoria: p.categoria === "trabajo" || p.categoria === "agenda" ? p.categoria : "examen",
       calendario: p.calendario ? String(p.calendario) : "examenes", notas: p.notas ? String(p.notas) : "",
       calificacion: typeof p.calificacion === "number" && isFinite(p.calificacion) ? p.calificacion : null,
       apunte: p.apunte ? String(p.apunte) : "",
@@ -65,6 +65,14 @@ const diasHasta = (fecha, hoy) => Math.round((aFecha(fecha) - aFecha(hoy)) / 864
 const cuando = (n) => (n === 0 ? "hoy" : n === 1 ? "mañana" : "en " + n + " días");
 const mesMas = (clave, n) => { const d = new Date(Number(clave.slice(0, 4)), Number(clave.slice(5, 7)) - 1 + n, 1); return d.getFullYear() + "-" + pad(d.getMonth() + 1); };
 const etiquetaMes = (clave) => cap(MESES[Number(clave.slice(5, 7)) - 1]) + " " + clave.slice(0, 4);
+
+// Los 7 días (de lunes a domingo, en texto) de la semana de una fecha.
+function diasSemana(fecha) {
+  const d = aFecha(fecha);
+  const lunes = d.getDate() - ((d.getDay() + 6) % 7);
+  return Array.from({ length: 7 }, (_, n) => { const x = new Date(d.getFullYear(), d.getMonth(), lunes + n); return x.getFullYear() + "-" + pad(x.getMonth() + 1) + "-" + pad(x.getDate()); });
+}
+const etiquetaSemana = (desde, hasta) => `Semana del ${Number(desde.slice(8))} ${MESES_CORTO[Number(desde.slice(5, 7)) - 1]} al ${Number(hasta.slice(8))} ${MESES_CORTO[Number(hasta.slice(5, 7)) - 1]}`;
 
 const proximos = (eventos, hoy, categoria, n) => eventos.filter((e) => e.categoria === categoria && e.fecha >= hoy).slice(0, n);
 
@@ -120,10 +128,8 @@ function tarjetaExamenesHechos(eventos, hoy, vault, opts) {
 
 // Turnos de trabajo de la semana de hoy (lunes a domingo), con el botón para añadir uno (acción "Anadir turno").
 function tarjetaTurnos(eventos, hoy, vault) {
-  const d = aFecha(hoy);
-  const lunes = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
-  const dia = (n) => { const x = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + n); return x.getFullYear() + "-" + pad(x.getMonth() + 1) + "-" + pad(x.getDate()); };
-  const desde = dia(0), hasta = dia(6);
+  const semana = diasSemana(hoy);
+  const desde = semana[0], hasta = semana[6];
   const lista = eventos.filter((e) => e.categoria === "trabajo" && e.fecha >= desde && e.fecha <= hasta);
   const minutos = (h) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5));
   const total = lista.reduce((a, e) => a + (e.horaInicio && e.horaFin ? minutos(e.horaFin) - minutos(e.horaInicio) : 0), 0);
@@ -137,89 +143,160 @@ function tarjetaTurnos(eventos, hoy, vault) {
   return `<section class="p-card"><div class="p-head"><h3>Turnos de trabajo</h3><span class="p-head-der">` +
     (lista.length ? `<span class="p-small p-muted">${lista.length} ${lista.length === 1 ? "turno" : "turnos"} · ${horas}</span>` : "") +
     `<a class="p-link p-link--mas" href="${uriQuickAdd(vault, "Anadir turno")}">Añadir turno</a></span></div>` +
-    `<span class="p-small p-muted">Semana del ${Number(desde.slice(8))} ${MESES_CORTO[Number(desde.slice(5, 7)) - 1]} al ${Number(hasta.slice(8))} ${MESES_CORTO[Number(hasta.slice(5, 7)) - 1]}</span>` +
+    `<span class="p-small p-muted">${etiquetaSemana(desde, hasta)}</span>` +
     (filas || `<div class="p-empty">Sin turnos esta semana</div>`) + `</section>`;
 }
 
 // ---------- Calendario del mes ----------
-// Prioridad del color de cada día: examen > trabajo > gimnasio. Cada día lleva el detalle en el title.
-const PRIORIDAD = ["examen", "trabajo", "gym"];
-const TEXTO_TIPO = { examen: "Examen", trabajo: "Trabajo", gym: "Gimnasio" };
+// Cada día enseña todo lo que tiene, por orden: examen, trabajo, agenda y gimnasio. El detalle va en el title.
+// Dos estilos con la misma rejilla: "barras" (compacto: una raya de color por cosa, en Inicio) y "etiquetas"
+// (cada cosa con su hora de inicio, en Estudios).
+const PRIORIDAD = ["examen", "trabajo", "agenda", "gym"];
+const TEXTO_TIPO = { examen: "Examen", trabajo: "Trabajo", agenda: "Agenda", gym: "Gimnasio" };
+const MAX_MARCAS = 3;   // si un día tiene más, la última plaza dice cuántas quedan
 
-const DOT_TIPO = { examen: "red", trabajo: "amber", gym: "green" };
+const DOT_TIPO = { examen: "red", trabajo: "amber", agenda: "purple", gym: "green" };
 
 function marcasCalendario(eventos, diasGym) {
   const marcas = {};
-  const poner = (fecha, tipo, texto, hora) => { (marcas[fecha] = marcas[fecha] || []).push({ tipo, texto, hora }); };
-  eventos.forEach((e) => poner(e.fecha, e.categoria, quitarPrefijo(e.titulo), horario(e)));
-  Array.from(diasGym || []).forEach((f) => poner(f, "gym", "Gimnasio", ""));
+  const poner = (fecha, marca) => { (marcas[fecha] = marcas[fecha] || []).push(marca); };
+  eventos.forEach((e) => poner(e.fecha, { tipo: e.categoria, texto: quitarPrefijo(e.titulo), hora: horario(e), inicio: e.todoElDia ? null : e.horaInicio, id: e.id, calendario: e.calendario }));
+  Array.from(diasGym || []).forEach((f) => poner(f, { tipo: "gym", texto: "Gimnasio", hora: "", inicio: null }));
   return marcas;
 }
+
+const ordenarDia = (delDia) => delDia.slice().sort((a, b) => PRIORIDAD.indexOf(a.tipo) - PRIORIDAD.indexOf(b.tipo));
+
+function marcasDia(delDia, estilo, conTitulo) {
+  const visibles = delDia.length > MAX_MARCAS ? delDia.slice(0, MAX_MARCAS - 1) : delDia;
+  const resto = delDia.length - visibles.length;
+  const etiqueta = (x) => (x.tipo === "gym" ? (conTitulo ? "Gimnasio" : "Gym") : esc(x.inicio || "Todo") + (conTitulo ? ` <span class="p-marca-titulo">${esc(x.texto)}</span>` : ""));
+  const filas = visibles.map((x) => (estilo === "etiquetas"
+    ? `<span class="p-marca p-marca--${x.tipo}">${etiqueta(x)}</span>`
+    : `<i class="p-marca p-marca--${x.tipo}"></i>`)).join("") +
+    (resto ? (estilo === "etiquetas" ? `<span class="p-marca p-marca--mas">+${resto}</span>` : `<i class="p-marca p-marca--mas"></i>`) : "");
+  return filas ? `<span class="p-dia-marcas">${filas}</span>` : "";
+}
+
+const filaEvento = (x) => `<div class="p-cal-ev"><i class="p-dot p-dot--${DOT_TIPO[x.tipo]}"></i>` +
+  `<span class="p-label">${x.tipo === "gym" ? "Gimnasio" : TEXTO_TIPO[x.tipo] + ": " + esc(x.texto)}</span>` +
+  (x.hora ? `<span class="p-small p-muted">${esc(x.hora)}</span>` : "") + `</div>`;
 
 // Lo que hay un día, debajo del calendario (se cambia al pasar el ratón o al pulsar un día).
 function detalleDia(fecha, marcas, hoy) {
   const d = aFecha(fecha);
   const titulo = (fecha === hoy ? "Hoy, " : cap(DIAS[d.getDay()]) + " ") + d.getDate() + " de " + MESES[d.getMonth()];
-  const delDia = (marcas[fecha] || []).slice().sort((a, b) => PRIORIDAD.indexOf(a.tipo) - PRIORIDAD.indexOf(b.tipo));
-  const filas = delDia.map((x) => `<div class="p-cal-ev"><i class="p-dot p-dot--${DOT_TIPO[x.tipo]}"></i>` +
-    `<span class="p-label">${x.tipo === "gym" ? "Gimnasio" : TEXTO_TIPO[x.tipo] + ": " + esc(x.texto)}</span>` +
-    (x.hora ? `<span class="p-small p-muted">${esc(x.hora)}</span>` : "") + `</div>`).join("");
+  const filas = ordenarDia(marcas[fecha] || []).map(filaEvento).join("");
   return `<span class="p-label"><b>${titulo}</b></span>` + (filas || `<span class="p-small p-muted">Nada este día</span>`);
 }
 
-function cuerpoCalendario(mes, marcas, hoy, sel) {
+// Clases de un día: un bloque plegado con el horario, aparte de los eventos. Solo se leen: no llevan acciones.
+function bloqueClases(delDia) {
+  if (!delDia || !delDia.length) return "";
+  const fin = delDia.map((c) => c.horaFin).sort().pop();
+  const filas = delDia.map((c) => `<div class="p-cal-ev"><span class="p-label">${esc(c.titulo)}</span><span class="p-small p-muted">${esc(c.horaInicio)} a ${esc(c.horaFin)}</span></div>`).join("");
+  return `<details class="p-sem-clases"><summary><span class="p-label">Clases</span>` +
+    `<span class="p-small p-muted">${esc(delDia[0].horaInicio)} a ${esc(fin)} · ${delDia.length}</span></summary>${filas}</details>`;
+}
+
+// Los 7 días de la semana de una fecha con lo que hay en cada uno (página Calendario). Hoy va marcado y el día
+// pulsado se distingue del resto y, si llega vault, enseña sus acciones: editar y borrar cada evento (el gimnasio
+// sale de la nota del día y no se toca aquí) y añadir un examen, un turno o un evento con esa fecha ya puesta
+// (value-dia). "Editar examen" y "Borrar examen" sirven para todos: miran de qué calendario es el evento.
+// clases: las de cada día ({ fecha: [...] }); solo salen en esta lista, nunca en el mes.
+function detalleSemana(fecha, marcas, hoy, sel, vault, clases) {
+  const enlace = (accion, vars, texto, clase) => `<a class="p-link${clase ? " " + clase : ""}" href="${uriQuickAdd(vault, accion, vars)}">${texto}</a>`;
+  const accionesEvento = (x) => (x.id
+    ? `<span class="p-sem-acciones">${enlace("Editar examen", { id: x.id }, "Editar")}${enlace("Borrar examen", { id: x.id }, "Borrar", "p-link--borrar")}</span>` : "");
+  const dias = diasSemana(fecha);
+  const filas = dias.map((f) => {
+    const d = aFecha(f);
+    const conAcciones = Boolean(vault) && f === sel;
+    const delDia = ordenarDia(marcas[f] || []).map((x) => filaEvento(x) + (conAcciones ? accionesEvento(x) : "")).join("");
+    const deClase = bloqueClases(clases && clases[f]);
+    const eventos = delDia || deClase ? delDia + deClase : `<span class="p-small p-muted">Nada</span>`;
+    const anadir = conAcciones ? `<span class="p-sem-acciones">${enlace("Anadir examen", { dia: f }, "Añadir examen", "p-link--mas")}${enlace("Anadir turno", { dia: f }, "Añadir turno", "p-link--mas")}${enlace("Anadir agenda", { dia: f }, "Añadir evento", "p-link--mas")}</span>` : "";
+    return `<div class="p-sem-dia${f === hoy ? " p-sem-dia--hoy" : ""}${f === sel ? " p-sem-dia--sel" : ""}"><span class="p-fechacaja"><b>${d.getDate()}</b><small>${DIAS[d.getDay()].slice(0, 3)}</small></span>` +
+      `<div class="p-sem-eventos">${f === hoy ? `<span class="p-small p-sem-hoy">Hoy</span>` : ""}${eventos}${anadir}</div></div>`;
+  }).join("");
+  return `<span class="p-label"><b>${etiquetaSemana(dias[0], dias[6])}</b></span>${filas}`;
+}
+
+// opts: { estilo ("barras" o "etiquetas"), tipos (los que salen en la leyenda), conTitulo (etiquetas con hora y título) }
+function cuerpoCalendario(mes, marcas, hoy, sel, opts) {
+  const o = Object.assign({ estilo: "barras", tipos: PRIORIDAD }, opts || {});
   const anio = Number(mes.slice(0, 4)), m = Number(mes.slice(5, 7)) - 1;
   const huecos = (new Date(anio, m, 1).getDay() + 6) % 7;   // la semana empieza el lunes
   const total = new Date(anio, m + 1, 0).getDate();
   const celdas = Array.from({ length: huecos }, () => `<span class="p-dia p-dia--vacio"></span>`);
   for (let d = 1; d <= total; d++) {
     const fecha = mes + "-" + pad(d);
-    const delDia = marcas[fecha] || [];
-    const tipo = PRIORIDAD.find((t) => delDia.some((x) => x.tipo === t));
+    const delDia = ordenarDia(marcas[fecha] || []);
     const detalle = delDia.map((x) => TEXTO_TIPO[x.tipo] + (x.tipo === "gym" ? "" : ": " + x.texto)).join(" · ");
-    celdas.push(`<span class="p-dia${tipo ? " p-dia--" + tipo : ""}${fecha === hoy ? " p-dia--hoy" : ""}${fecha === (sel || hoy) ? " p-dia--sel" : ""}" ` +
-      `data-dia="${fecha}" tabindex="0" role="button"${detalle ? ` title="${esc(detalle)}"` : ""}>${d}</span>`);
+    celdas.push(`<span class="p-dia${fecha === hoy ? " p-dia--hoy" : ""}${fecha === (sel || hoy) ? " p-dia--sel" : ""}" ` +
+      `data-dia="${fecha}" tabindex="0" role="button"${detalle ? ` title="${esc(detalle)}"` : ""}><span class="p-dia-num">${d}</span>${marcasDia(delDia, o.estilo, o.conTitulo)}</span>`);
   }
   return `<div class="p-head"><button type="button" class="p-mes-btn" data-cal-mes="prev" aria-label="Mes anterior">‹</button>` +
-    `<span class="p-label"><b>${etiquetaMes(mes)}</b></span><button type="button" class="p-mes-btn" data-cal-mes="next" aria-label="Mes siguiente">›</button></div>` +
+    `<span class="p-label"><b>${etiquetaMes(mes)}</b></span>${o.semana ? `<button type="button" class="p-mes-btn p-mes-btn--hoy" data-cal-mes="hoy">Hoy</button>` : ""}` +
+    `<button type="button" class="p-mes-btn" data-cal-mes="next" aria-label="Mes siguiente">›</button></div>` +
     `<div class="p-weekdays"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div>` +
-    `<div class="p-cal-grid">${celdas.join("")}</div>` +
-    `<div class="p-legend"><span><i class="p-dot p-dot--red"></i>Examen</span>` +
-    `<span><i class="p-dot p-dot--amber"></i>Trabajo</span><span><i class="p-dot p-dot--green"></i>Gimnasio</span></div>`;
+    `<div class="p-cal-grid p-cal-grid--${o.estilo}">${celdas.join("")}</div>` +
+    `<div class="p-legend">${o.tipos.map((t) => `<span><i class="p-dot p-dot--${DOT_TIPO[t]}"></i>${TEXTO_TIPO[t]}</span>`).join("")}</div>`;
 }
 
-function tarjetaCalendario(eventos, diasGym, hoy, mes) {
+// opts: los de cuerpoCalendario, más mes (AAAA-MM; por defecto, el de hoy)
+function tarjetaCalendario(eventos, diasGym, hoy, opts) {
   const marcas = marcasCalendario(eventos, diasGym);
-  return `<section class="p-card p-card--cal"><h3>Calendario</h3><div data-calendario>${cuerpoCalendario(mes || hoy.slice(0, 7), marcas, hoy)}</div>` +
+  return `<section class="p-card p-card--cal"><h3>Calendario</h3><div data-calendario>${cuerpoCalendario((opts && opts.mes) || hoy.slice(0, 7), marcas, hoy, null, opts)}</div>` +
     `<div class="p-cal-detalle" data-cal-detalle>${detalleDia(hoy, marcas, hoy)}</div></section>`;
+}
+
+// Página Calendario: el mes grande a la izquierda y la semana del día elegido a la derecha. Usa las mismas piezas
+// que la tarjeta, así que activarCalendario sirve igual (con opts.semana).
+function paginaCalendario(eventos, diasGym, hoy, opts) {
+  const marcas = marcasCalendario(eventos, diasGym);
+  return `<div class="p-calendario"><section class="p-card p-cal-mes"><div data-calendario>${cuerpoCalendario(hoy.slice(0, 7), marcas, hoy, null, opts)}</div></section>` +
+    `<section class="p-card p-cal-lado"><div class="p-cal-detalle" data-cal-detalle>${detalleSemana(hoy, marcas, hoy, hoy, opts && opts.vault, opts && opts.clases)}</div></section></div>`;
 }
 
 // Hace que los botones ‹ y › cambien de mes (solo se vuelve a pintar el calendario) y que, al pasar el ratón por un
 // día o pulsarlo, se vea debajo lo que hay ese día. Al quitar el ratón vuelve el día pulsado (al principio, hoy).
-function activarCalendario(raiz, eventos, diasGym, hoy) {
+// Con opts.semana se enseña la semana del día pulsado y el ratón no cambia nada: moverla al pasar por encima marea.
+// Además, el mes y el día elegidos se recuerdan en window: al guardar un evento Dataview repinta la página y, sin
+// esto, volvería a hoy. Se pierden al cerrar Obsidian; el botón Hoy vuelve a la fecha actual.
+function activarCalendario(raiz, eventos, diasGym, hoy, opts) {
   const caja = raiz && raiz.querySelector ? raiz.querySelector("[data-calendario]") : null;
   if (!caja) return;
   const marcas = marcasCalendario(eventos, diasGym);
   const detalle = raiz.querySelector("[data-cal-detalle]");
-  let mesActual = hoy.slice(0, 7), sel = hoy;
-  const mostrar = (fecha) => { if (detalle) detalle.innerHTML = detalleDia(fecha, marcas, hoy); };
+  const conSemana = Boolean(opts && opts.semana);
+  const recuerdo = conSemana && typeof window !== "undefined" ? (window.panelCalendario = window.panelCalendario || {}) : {};
+  let mesActual = recuerdo.mes || hoy.slice(0, 7), sel = recuerdo.sel || hoy;
+  const mostrar =(fecha) => { if (detalle) detalle.innerHTML = conSemana ? detalleSemana(fecha, marcas, hoy, sel, opts.vault, opts.clases) : detalleDia(fecha, marcas, hoy); };
   const pintar = (mes) => {
-    mesActual = mes;
-    caja.innerHTML = cuerpoCalendario(mes, marcas, hoy, sel);
-    caja.querySelectorAll("[data-cal-mes]").forEach((b) => b.addEventListener("click", () => pintar(mesMas(mes, b.getAttribute("data-cal-mes") === "prev" ? -1 : 1))));
+    mesActual = recuerdo.mes = mes;
+    caja.innerHTML = cuerpoCalendario(mes, marcas, hoy, sel, opts);
+    caja.querySelectorAll("[data-cal-mes]").forEach((b) => b.addEventListener("click", () => {
+      const dir = b.getAttribute("data-cal-mes");
+      if (dir !== "hoy") { pintar(mesMas(mes, dir === "prev" ? -1 : 1)); return; }
+      sel = recuerdo.sel = hoy; pintar(hoy.slice(0, 7)); mostrar(sel);
+    }));
   };
   const diaDe = (ev) => (ev.target && ev.target.closest ? ev.target.closest("[data-dia]") : null);
-  const elegir = (celda) => { sel = celda.getAttribute("data-dia"); pintar(mesActual); mostrar(sel); };
+  const elegir = (celda) => { sel = recuerdo.sel = celda.getAttribute("data-dia"); pintar(mesActual); mostrar(sel); };
   if (typeof caja.addEventListener === "function") {
-    caja.addEventListener("mouseover", (ev) => { const c = diaDe(ev); if (c) mostrar(c.getAttribute("data-dia")); });
-    caja.addEventListener("mouseleave", () => mostrar(sel));
+    if (!conSemana) {
+      caja.addEventListener("mouseover", (ev) => { const c = diaDe(ev); if (c) mostrar(c.getAttribute("data-dia")); });
+      caja.addEventListener("mouseleave", () => mostrar(sel));
+    }
     caja.addEventListener("click", (ev) => { const c = diaDe(ev); if (c) elegir(c); });
     caja.addEventListener("keydown", (ev) => { const c = diaDe(ev); if (c && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); elegir(c); } });
   }
   pintar(mesActual);
+  if (conSemana) mostrar(sel);
 }
 
 module.exports = {
   leerEventos, diasGimnasio, uriQuickAdd, quitarPrefijo, proximos, tarjetaExamenes, tarjetaExamenesHechos, tarjetaTurnos,
-  marcasCalendario, detalleDia, cuerpoCalendario, tarjetaCalendario, activarCalendario, mesMas, diasHasta,
+  marcasCalendario, detalleDia, detalleSemana, diasSemana, cuerpoCalendario, tarjetaCalendario, paginaCalendario, activarCalendario, mesMas, diasHasta,
 };

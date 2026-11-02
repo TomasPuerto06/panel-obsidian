@@ -42,9 +42,10 @@ Opcionalmente se sincroniza en los dos sentidos con **Google Sheets y Google Cal
 
 | Página | Qué muestra |
 |---|---|
-| **Inicio** | Gimnasio de la semana, sueño y ánimo medios, gráfica de hábitos de 14 días con la checklist de cada día, horas de sueño, tareas, próximos exámenes, resumen de finanzas, nota del día, calendario del mes, turnos de trabajo de la semana y proyectos. |
-| **Salud** | Los mismos datos de salud, ánimo de 14 días, días que andas en la cinta y sesiones de gimnasio por semana. |
-| **Estudios** | Próximos exámenes, exámenes hechos (con calificación y un apunte), calendario con el detalle de cada día, asignaturas con sus apuntes y prácticas, y tareas de clase. |
+| **Inicio** | Nota del día, gimnasio de la semana, sueño y ánimo medios, gráfica de hábitos de 14 días con la checklist de cada día, horas de sueño, tareas, próximos exámenes, resumen de finanzas, calendario del mes, turnos de trabajo de la semana y proyectos. |
+| **Calendario** | El mes con hora y título de cada cosa y los 7 días de la semana elegida, con el horario de clases plegado aparte. Se pueden añadir, editar y borrar exámenes, turnos y eventos propios. |
+| **Salud** | Los mismos datos de salud, plan del gimnasio de la semana (se reorganiza solo si fallas un día), ánimo de 14 días, días que andas en la cinta y sesiones de gimnasio por semana. |
+| **Estudios** | Calendario de exámenes con el detalle de cada día, próximos exámenes, exámenes hechos (con calificación y un apunte), asignaturas con sus apuntes y prácticas, y tareas de clase. |
 | **Proyectos** | Proyectos en marcha, pendientes, ideas y terminados, con una barra de progreso que sale de su plan de casillas, próximos pasos y tareas de proyecto. |
 | **Finanzas** | Mes a mes: ingresos, gastos, ahorro e inversión, gráfica de 6 meses, movimientos, total invertido y gastos por categoría. |
 
@@ -71,12 +72,14 @@ Necesitas [Obsidian](https://obsidian.md) (gratis).
 | Acción | Para qué | ¿Necesita Google? |
 |---|---|---|
 | **Registrar dia** | Ánimo, sueño, entreno, cinta, agua, pasos, lectura, preparar el día siguiente, proyecto y notas, en un solo formulario | No |
+| **Escribir nota** | Cambia el texto de la nota de hoy | No |
+| **Marcar entreno** | Lo que hiciste un día, desde el plan de la semana | No |
 | **Anadir / Editar / Borrar movimiento** | Ingresos, gastos, ahorro e inversión | No |
 | **Anadir / Editar / Marcar / Borrar tarea** | Tareas con categoría | No |
 | **Poner nota de examen** | Calificación y apunte de un examen ya hecho (se guardan solo en la nota) | No, aunque los exámenes llegan desde Google |
 | **Anadir / Editar / Borrar examen** | Exámenes (se guardan en Google Calendar) | Sí |
-| **Anadir turno** | Turnos de trabajo (se crean en Google Calendar) | Sí |
-| **Configurar puente** y **Sincronizar** | Conectar con Google y traer o enviar los cambios | Sí |
+| **Anadir turno** y **Anadir agenda** | Turnos de trabajo y eventos propios (se crean en Google Calendar) | Sí |
+| **Configurar puente** y **Sincronizar** | Conectar con Google y traer o enviar los cambios. Con el puente configurado, además se sincroniza solo cada 5 minutos | Sí |
 
 Sin el puente, todo lo que no necesita Google funciona igual: se guarda en tus notas.
 
@@ -112,13 +115,13 @@ Mira cualquier nota de `Panel/Ejemplo` para ver el formato exacto.
 
 ## Sincronizar con Google (opcional)
 
-El puente es un script de Google Apps Script que vive en **tu** cuenta de Google. Conecta el panel con una hoja de cálculo (salud, finanzas y tareas) y con dos calendarios (exámenes y turnos de trabajo), en los dos sentidos.
+El puente es un script de Google Apps Script que vive en **tu** cuenta de Google. Conecta el panel con una hoja de cálculo (salud, finanzas, tareas y notas del día) y con tres calendarios (exámenes, turnos de trabajo y eventos propios), en los dos sentidos. El calendario de clases solo se lee.
 
 ```mermaid
 flowchart LR
     A["Obsidian<br/>(tus notas)"] -- "peticiones firmadas<br/>(HMAC-SHA256)" --> B["Puente<br/>Apps Script"]
-    B --> C[("Google Sheets<br/>Gimnasio · Hábitos<br/>Finanzas · Tareas")]
-    B --> D[("Google Calendar<br/>Exámenes · Trabajo")]
+    B --> C[("Google Sheets<br/>Gimnasio · Hábitos<br/>Finanzas · Tareas · Notas")]
+    B --> D[("Google Calendar<br/>Exámenes · Trabajo · Agenda<br/>Clases (solo lectura)")]
 ```
 
 - Cada petición va **firmada con un secreto** que solo está en tu Obsidian y en tu script: sin él, el puente no responde.

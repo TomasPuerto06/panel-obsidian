@@ -1,0 +1,27 @@
+/* Vista gráfica con la paleta del panel (ver Proyectos/Panel en Obsidian - Diseño y estilo.md).
+   Los colores de cada carpeta están en .obsidian/graph.json (grupos de color); aquí, fondo, líneas y textos. */
+
+.theme-dark {
+  --graph-node: #9a9eb2;              /* notas sin grupo de color */
+  --graph-node-unresolved: #2a2d38;
+  --graph-node-focused: #4f86ff;      /* la nota que tienes abierta o señalada */
+  --graph-node-tag: #a26cf5;
+  --graph-node-attachment: #2a2d38;
+  --graph-line: #2a2d38;
+  --graph-text: #f2f3f7;
+}
+
+/* Fondo del gráfico global y del local: el mismo casi negro del panel, con un brillo azul suave en el centro */
+.workspace-leaf-content[data-type="graph"] .view-content,
+.workspace-leaf-content[data-type="localgraph"] .view-content {
+  background-color: #121318;
+  background-image: radial-gradient(circle at 50% 50%, rgba(79, 134, 255, 0.10) 0%, rgba(18, 19, 24, 0) 60%);
+}
+
+/* Panel de ajustes del gráfico con la fuente y las tarjetas del panel */
+.graph-controls {
+  font-family: "Chakra Petch", var(--font-interface);
+  background-color: #1c1e26;
+  border: 1px solid #2a2d38;
+  border-radius: 12px;
+}

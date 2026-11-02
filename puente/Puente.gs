@@ -2,10 +2,10 @@
  * Panel Puente: la puerta entre Obsidian y la hoja "Panel de vida".
  *
  * Es un proyecto de Apps Script APARTE del Panel de vida. La web del Panel de vida sigue en "solo yo";
- * este proyecto solo sabe leer y escribir cuatro pestañas (Gimnasio, Hábitos, Finanzas y Tareas) y dos calendarios
- * elegidos por nombre: "Exámenes y entregas" (se lee y se escribe) y "Trabajo" (se lee y solo se pueden CREAR turnos;
- * nunca se editan ni se borran desde aquí). No ve el calendario
- * personal ni el de clases, ni el correo.
+ * este proyecto solo sabe leer y escribir seis pestañas (Gimnasio, Hábitos, Finanzas, Tareas, Notas del día y Espejo de
+ * Obsidian) y tres calendarios elegidos por nombre: "Exámenes y entregas", "Trabajo" y "Agenda del panel" (se leen y se
+ * escriben, con una operación propia para cada uno; los eventos que son parte de una serie no se cambian desde aquí).
+ * El calendario "Clases" solo se lee, y solo el título y las horas. No ve el calendario personal ni el correo.
  *
  * Seguridad (solo puede usarlo quien tenga el SECRETO, que solo está en tu Obsidian y aquí):
  *  - Cada petición va firmada con HMAC-SHA256: el secreto nunca viaja por la red.
@@ -30,11 +30,21 @@ const BLOQUEO_S = 15 * 60;          // duración del bloqueo
 const MAX_OPS_LOTE = 200;
 const MAX_DIAS_LECTURA = 400;
 
-const PESTANAS = { gimnasio: 'Gimnasio', habitos: 'Hábitos', finanzas: 'Finanzas', tareas: 'Tareas' };
-// Calendarios de Google a los que llega el puente, por NOMBRE (nunca el personal ni el de clases):
-// "examenes" se lee y se escribe; en "trabajo" solo se leen y se crean turnos (guardarTurno), nunca se editan ni borran.
-const CALENDARIOS = { examenes: 'Exámenes y entregas', trabajo: 'Trabajo' };
+const PESTANAS = {
+  gimnasio: 'Gimnasio', habitos: 'Hábitos', finanzas: 'Finanzas', tareas: 'Tareas',
+  notas: 'Notas del día', espejo: 'Espejo de Obsidian',
+};
+// Calendarios de Google a los que llega el puente, por NOMBRE (nunca el personal).
+// Cada operación solo busca en su calendario, así que nunca puede tocar un evento de otro.
+const CALENDARIOS = { examenes: 'Exámenes y entregas', trabajo: 'Trabajo', agenda: 'Agenda del panel' };
+// Va aparte a propósito: las operaciones de escritura solo conocen CALENDARIOS, así que las clases no se pueden cambiar.
+const CALENDARIO_CLASES = 'Clases';
 const MAX_EVENTOS = 500;
+const MAX_CLASES = 800;
+const MAX_TEXTO_NOTA = 10000;
+const MAX_NOTAS_ESPEJO = 500;
+const MAX_CELDA_ESPEJO = 40000;   // una celda de la hoja admite 50.000 caracteres
+const RE_RUTA_ESPEJO = /^(Proyectos\/|Estudios\/|Panel\/Calendario\/|Panel\/Configuracion\.md$)/;
 const RE_HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
 const ENTRENOS = ['pht', 'eba', 'pierna'];
 const TIPOS = ['ingreso', 'gasto', 'ahorro', 'inversion'];
@@ -134,6 +144,12 @@ function operacion_(op, datos) {
     case 'guardarEvento': return { ok: true, id: guardarEvento_(datos) };
     case 'borrarEvento': borrarEvento_(datos); return { ok: true };
     case 'guardarTurno': return { ok: true, id: guardarTurno_(datos) };
+    case 'editarTurno': return { ok: true, id: editarTurno_(datos) };
+    case 'borrarTurno': borrarTurno_(datos); return { ok: true };
+    case 'guardarAgenda': return { ok: true, id: guardarAgenda_(datos) };
+    case 'borrarAgenda': borrarAgenda_(datos); return { ok: true };
+    case 'guardarNotaDia': guardarNotaDia_(datos); return { ok: true };
+    case 'guardarEspejo': return { ok: true, notas: guardarEspejo_(datos) };
     default: throw new ErrorPuente('operación no válida');
   }
 }
@@ -156,19 +172,27 @@ function lote_(datos) {
     else if (o.op === 'borrarTarea') borrarTarea_(o.datos);
     else if (o.op === 'guardarEvento') eventos.push(guardarEvento_(o.datos));
     else if (o.op === 'borrarEvento') borrarEvento_(o.datos);
+    else if (o.op === 'editarTurno') eventos.push(editarTurno_(o.datos));
+    else if (o.op === 'borrarTurno') borrarTurno_(o.datos);
+    else if (o.op === 'guardarAgenda') eventos.push(guardarAgenda_(o.datos));
+    else if (o.op === 'borrarAgenda') borrarAgenda_(o.datos);
+    else if (o.op === 'guardarNotaDia') guardarNotaDia_(o.datos);
     else borrarMovimiento_(o.datos);
   });
   return { ok: true, hechas: ops.length, ids: ids, eventos: eventos };
 }
 
-const OPS_LOTE = ['guardarDia', 'guardarMovimiento', 'borrarMovimiento', 'guardarTarea', 'borrarTarea', 'guardarEvento', 'borrarEvento'];
+const OPS_LOTE = ['guardarDia', 'guardarMovimiento', 'borrarMovimiento', 'guardarTarea', 'borrarTarea', 'guardarEvento', 'borrarEvento',
+  'editarTurno', 'borrarTurno', 'guardarAgenda', 'borrarAgenda', 'guardarNotaDia'];
 
 function validarOperacion_(op, d) {
   if (op === 'guardarDia') normalizarDia_(d);
   else if (op === 'guardarMovimiento') normalizarMovimiento_(d);
   else if (op === 'guardarTarea') normalizarTarea_(d);
-  else if (op === 'guardarEvento') normalizarEvento_(d);
-  else if (op === 'borrarEvento') validarIdEvento_(d && d.id);
+  else if (op === 'guardarEvento' || op === 'guardarAgenda') normalizarEvento_(d);
+  else if (op === 'editarTurno') normalizarTurno_(d, true);
+  else if (op === 'guardarNotaDia') normalizarNotaDia_(d);
+  else if (op === 'borrarEvento' || op === 'borrarTurno' || op === 'borrarAgenda') validarIdEvento_(d && d.id);
   else validarId_(d && d.id);
 }
 
@@ -271,14 +295,40 @@ function normalizarEvento_(d) {
   };
 }
 
-function normalizarTurno_(d) {
-  if (!d || typeof d !== 'object' || (d.id !== undefined && d.id !== null)) throw new ErrorPuente('turno no válido');
+/** Turno limpio y validado. Crear no acepta id y editar lo exige (conId): así una operación no puede hacer la otra. */
+function normalizarTurno_(d, conId) {
+  const tieneId = Boolean(d) && d.id !== undefined && d.id !== null;
+  if (!d || typeof d !== 'object' || tieneId !== Boolean(conId)) throw new ErrorPuente('turno no válido');
   const titulo = typeof d.titulo === 'string' ? d.titulo.trim() : '';
   if (!titulo || titulo.length > 80) throw new ErrorPuente('título del turno no válido');
   const fecha = exigirFecha_(d.fecha);
   if (!RE_HORA.test(d.horaInicio || '')) throw new ErrorPuente('hora de inicio no válida');
   if (!RE_HORA.test(d.horaFin || '') || d.horaFin <= d.horaInicio) throw new ErrorPuente('hora de fin no válida');
-  return { titulo: titulo, fecha: fecha, horaInicio: d.horaInicio, horaFin: d.horaFin };
+  return { id: conId ? validarIdEvento_(d.id) : null, titulo: titulo, fecha: fecha, horaInicio: d.horaInicio, horaFin: d.horaFin };
+}
+
+/** Texto de "## Notas" de un día: { fecha, texto }. Vacío significa que no hay nota. */
+function normalizarNotaDia_(d) {
+  if (!d || typeof d !== 'object') throw new ErrorPuente('nota no válida');
+  const texto = typeof d.texto === 'string' ? d.texto.trim() : '';
+  if (texto.length > MAX_TEXTO_NOTA) throw new ErrorPuente('la nota es demasiado larga');
+  return { fecha: exigirFecha_(d.fecha), texto: texto };
+}
+
+/**
+ * Lista limpia de notas para el espejo: { notas: [{ ruta, fm, cuerpo }] }. Las rutas solo pueden ser de las carpetas que
+ * enseña la web y una lista vacía se rechaza: nunca debe borrarse el espejo entero por un fallo al leer las notas.
+ */
+function normalizarEspejo_(d) {
+  const notas = d && d.notas;
+  if (!Array.isArray(notas) || !notas.length || notas.length > MAX_NOTAS_ESPEJO) throw new ErrorPuente('espejo no válido');
+  return notas.map((n) => {
+    if (!n || typeof n.ruta !== 'string' || n.ruta.length > 300 || n.ruta.includes('..') || !RE_RUTA_ESPEJO.test(n.ruta)) throw new ErrorPuente('ruta no válida');
+    if (!n.fm || typeof n.fm !== 'object' || Array.isArray(n.fm)) throw new ErrorPuente('espejo no válido');
+    const nota = { fm: n.fm, cuerpo: typeof n.cuerpo === 'string' ? n.cuerpo : '' };
+    if (JSON.stringify(nota).length > MAX_CELDA_ESPEJO) throw new ErrorPuente('nota demasiado larga: ' + n.ruta);
+    return { ruta: n.ruta, nota: nota };
+  });
 }
 
 // ---------- Hoja ----------
@@ -289,8 +339,17 @@ function libro_() {
   return SpreadsheetApp.openById(id);
 }
 
+/** Pestañas que se crean solas la primera vez, con su cabecera. */
+const PESTANAS_NUEVAS = ['notas', 'espejo'];
+
 function pestana_(clave) {
-  const hoja = libro_().getSheetByName(PESTANAS[clave]);
+  const libro = libro_();
+  let hoja = libro.getSheetByName(PESTANAS[clave]);
+  if (!hoja && PESTANAS_NUEVAS.includes(clave)) {
+    hoja = libro.insertSheet(PESTANAS[clave]);
+    hoja.appendRow(CABECERAS[clave]);
+    hoja.setFrozenRows(1);
+  }
   if (!hoja) throw new ErrorPuente('falta la pestaña ' + PESTANAS[clave]);
   return hoja;
 }
@@ -320,14 +379,11 @@ function aplicarEntreno_(fecha, entreno) {
   const hoja = pestana_('gimnasio');
   const fila = buscarFila_(hoja, fecha);
   const actual = fila ? hoja.getRange(fila, 1, 1, 4).getValues()[0] : null;
-  if (ENTRENOS.includes(entreno)) {
-    const notas = actual ? actual[3] : '';
-    if (fila) hoja.deleteRow(fila);
-    hoja.appendRow([aFecha_(fecha), entreno, 'hecho', notas]);
-  } else if (actual && actual[2] === 'hecho') {
-    // "descanso" o vacío: se quita un entreno hecho; un "fallado" marcado en la app no se toca.
-    hoja.deleteRow(fila);
-  }
+  const notas = actual ? actual[3] : '';
+  if (fila) hoja.deleteRow(fila);
+  // "descanso" es un día en el que no se fue: el planificador reparte lo que falta. Vacío quita el registro.
+  if (ENTRENOS.includes(entreno)) hoja.appendRow([aFecha_(fecha), entreno, 'hecho', notas]);
+  else if (entreno === 'descanso') hoja.appendRow([aFecha_(fecha), '', 'fallado', notas]);
 }
 
 function aplicarHabito_(fecha, nombre, valor) {
@@ -402,7 +458,53 @@ function borrarTarea_(datos) {
   if (fila) hoja.deleteRow(fila);
 }
 
-// ---------- Calendario (solo "Exámenes y entregas" se escribe; "Trabajo" solo se lee) ----------
+// ---------- Notas del día (pestaña Notas del día: Fecha | Texto | Actualizada) ----------
+
+/** "Actualizada" son milisegundos: al cruzar con Obsidian, gana lo último que se guardó. Una nota vacía quita la fila. */
+function guardarNotaDia_(datos) {
+  const n = normalizarNotaDia_(datos);
+  const hoja = pestana_('notas');
+  const fila = buscarFila_(hoja, n.fecha);
+  if (!n.texto) { if (fila) hoja.deleteRow(fila); return; }
+  // El apóstrofo guarda el texto tal cual: sin él, una nota como "3/11" se convertiría en una fecha
+  const valores = [aFecha_(n.fecha), "'" + n.texto, Date.now()];
+  if (fila) hoja.getRange(fila, 1, 1, 3).setValues([valores]);
+  else hoja.appendRow(valores);
+}
+
+function leerNotasDia_(desde, hasta) {
+  return pestana_('notas').getDataRange().getValues().slice(1).map((f) => ({
+    fecha: f[0] instanceof Date ? aTexto_(f[0]) : '', texto: String(f[1]), actualizada: Number(f[2]) || 0,
+  })).filter((n) => n.fecha >= desde && n.fecha <= hasta);
+}
+
+// ---------- Espejo: lo que solo vive en Obsidian, para enseñarlo en la web (Ruta | Nota) ----------
+
+/** Sustituye la copia entera. Es de una sola dirección: Obsidian manda y la web solo lo lee. */
+function guardarEspejo_(datos) {
+  const notas = normalizarEspejo_(datos);
+  const hoja = pestana_('espejo');
+  const filas = notas.map((n) => [n.ruta, JSON.stringify(n.nota)]);
+  const ultima = hoja.getLastRow();
+  if (ultima > 1) hoja.getRange(2, 1, ultima - 1, 2).clearContent();
+  hoja.getRange(2, 1, filas.length, 2).setValues(filas);
+  return filas.length;
+}
+
+/** Una fila estropeada a mano en la hoja se salta: no debe impedir que se lea todo lo demás. */
+function leerEspejo_() {
+  const salida = [];
+  pestana_('espejo').getDataRange().getValues().slice(1).forEach((f) => {
+    if (!f[0]) return;
+    try {
+      const nota = JSON.parse(f[1]);
+      salida.push({ ruta: String(f[0]), fm: nota.fm, cuerpo: nota.cuerpo });
+    } catch (e) { /* fila no válida */ }
+  });
+  return salida;
+}
+
+// ---------- Calendario ----------
 
 function calendario_(clave, obligatorio) {
   const lista = CalendarApp.getCalendarsByName(CALENDARIOS[clave]).filter((c) => c.isOwnedByMe());
@@ -415,13 +517,26 @@ function calendario_(clave, obligatorio) {
 
 function aHoraFecha_(fecha, hora) { return Utilities.parseDate(fecha + ' ' + hora, ZONA, 'yyyy-MM-dd HH:mm'); }
 
-/** Crea o actualiza un evento del calendario de exámenes y entregas. Devuelve su id. */
-function guardarEvento_(datos) {
+/**
+ * Busca un evento SOLO en ese calendario. Si es parte de una serie no se toca desde aquí: cambiarlo podría afectar a
+ * otros días, y eso se hace en Google Calendar.
+ */
+function eventoSuelto_(clave, id) {
+  const ev = calendario_(clave, true).getEventById(id);
+  if (ev && ev.isRecurringEvent()) throw new ErrorPuente('es parte de una serie: cámbialo en Google Calendar');
+  return ev;
+}
+
+function guardarEvento_(datos) { return guardarEnCalendario_('examenes', datos); }
+function guardarAgenda_(datos) { return guardarEnCalendario_('agenda', datos); }
+
+/** Crea o actualiza un evento de ese calendario ("examenes" o "agenda"). Devuelve su id. */
+function guardarEnCalendario_(clave, datos) {
   const e = normalizarEvento_(datos);
-  const cal = calendario_('examenes', true);
+  const cal = calendario_(clave, true);
   let ev = null;
   if (e.id) {
-    ev = cal.getEventById(e.id);
+    ev = eventoSuelto_(clave, e.id);
     if (!ev) throw new ErrorPuente('evento no encontrado');   // no existe o no es de este calendario
   }
   if (e.todoElDia) {
@@ -438,27 +553,58 @@ function guardarEvento_(datos) {
 }
 
 /**
- * Crea un turno en el calendario "Trabajo". Solo CREA: no acepta id, así que no puede
- * cambiar ni borrar turnos que ya existen. Sin descripción. No entra en los lotes: crear necesita conexión porque el
- * id lo da Google, igual que con los exámenes.
+ * Crea un turno en el calendario "Trabajo". No acepta id, así que no puede cambiar turnos que ya existen (eso es
+ * editarTurno). Sin descripción. No entra en los lotes: crear necesita conexión porque el id lo da Google, igual
+ * que con los exámenes.
  */
 function guardarTurno_(datos) {
-  const t = normalizarTurno_(datos);
+  const t = normalizarTurno_(datos, false);
   return calendario_('trabajo', true).createEvent(t.titulo, aHoraFecha_(t.fecha, t.horaInicio), aHoraFecha_(t.fecha, t.horaFin)).getId();
 }
 
-function borrarEvento_(datos) {
-  const id = validarIdEvento_(datos && datos.id);
-  const ev = calendario_('examenes', true).getEventById(id);   // un evento de "Trabajo" no se encuentra aquí
+/** Cambia el título y las horas de un turno de "Trabajo". Su descripción no se lee ni se toca. */
+function editarTurno_(datos) {
+  const t = normalizarTurno_(datos, true);
+  const ev = eventoSuelto_('trabajo', t.id);
+  if (!ev) throw new ErrorPuente('turno no encontrado');
+  ev.setTime(aHoraFecha_(t.fecha, t.horaInicio), aHoraFecha_(t.fecha, t.horaFin));
+  ev.setTitle(t.titulo);
+  return ev.getId();
+}
+
+function borrarDe_(clave, datos) {
+  const ev = eventoSuelto_(clave, validarIdEvento_(datos && datos.id));
   if (ev) ev.deleteEvent();
 }
 
-/** Eventos de los dos calendarios entre dos fechas (ambas incluidas), ordenados. */
+function borrarEvento_(datos) { borrarDe_('examenes', datos); }
+function borrarTurno_(datos) { borrarDe_('trabajo', datos); }
+function borrarAgenda_(datos) { borrarDe_('agenda', datos); }
+
+/** Las 00:00 de Madrid del día siguiente a esa fecha: el final de una consulta con las dos fechas incluidas. */
+function finDeRango_(hasta) {
+  const fin = aFecha_(hasta);
+  fin.setTime(fin.getTime() + 36 * 60 * 60 * 1000);
+  return aFecha_(aTexto_(fin));
+}
+
+/** Clases entre dos fechas: solo título y horas. Sin id ni descripción, porque desde aquí no se pueden cambiar. */
+function leerClases_(desde, hasta) {
+  const lista = CalendarApp.getCalendarsByName(CALENDARIO_CLASES).filter((c) => c.isOwnedByMe());
+  if (!lista.length) return [];
+  const salida = lista[0].getEvents(aFecha_(desde), finDeRango_(hasta)).filter((ev) => !ev.isAllDayEvent()).map((ev) => ({
+    titulo: String(ev.getTitle()), fecha: aTexto_(ev.getStartTime()),
+    horaInicio: Utilities.formatDate(ev.getStartTime(), ZONA, 'HH:mm'),
+    horaFin: Utilities.formatDate(ev.getEndTime(), ZONA, 'HH:mm'),
+  }));
+  if (salida.length > MAX_CLASES) throw new ErrorPuente('demasiadas clases: pide un rango menor');
+  return salida.sort((a, b) => (a.fecha + a.horaInicio).localeCompare(b.fecha + b.horaInicio));
+}
+
+/** Eventos de los calendarios del puente entre dos fechas (ambas incluidas), ordenados. */
 function leerEventos_(desde, hasta) {
   const ini = aFecha_(desde);
-  const fin = aFecha_(hasta);
-  fin.setTime(fin.getTime() + 36 * 60 * 60 * 1000);          // hasta el día siguiente...
-  const limite = aFecha_(aTexto_(fin));                       // ...a las 00:00 de Madrid
+  const limite = finDeRango_(hasta);
   const salida = [];
   Object.keys(CALENDARIOS).forEach((clave) => {
     const cal = calendario_(clave, clave === 'examenes');
@@ -471,7 +617,7 @@ function leerEventos_(desde, hasta) {
         fecha: aTexto_(inicio),
         horaInicio: todoElDia ? null : Utilities.formatDate(ev.getStartTime(), ZONA, 'HH:mm'),
         horaFin: todoElDia ? null : Utilities.formatDate(ev.getEndTime(), ZONA, 'HH:mm'),
-        notas: clave === 'examenes' ? String(ev.getDescription() || '').slice(0, 300) : '',   // de "Trabajo" no sale ni el texto
+        notas: clave === 'trabajo' ? '' : String(ev.getDescription() || '').slice(0, 300),   // de "Trabajo" no sale ni el texto
       });
     });
   });
@@ -482,9 +628,9 @@ function leerEventos_(desde, hasta) {
 // ---------- Lectura ----------
 
 /**
- * datos = { desde, hasta?, movDesde? }
- * Devuelve los días con datos entre desde y hasta (entreno y hábitos) y los movimientos de finanzas
- * (todos, o los posteriores a movDesde).
+ * datos = { desde, hasta?, movDesde?, eventosDesde?, eventosHasta?, clasesDesde?, clasesHasta?, conEspejo? }
+ * Devuelve los días con datos entre desde y hasta (entreno, hábitos y texto de la nota) y los movimientos de finanzas
+ * (todos, o los posteriores a movDesde). Los eventos, las clases y el espejo solo salen si se piden.
  */
 function leer_(datos) {
   const desde = exigirFecha_(datos && datos.desde);
@@ -498,7 +644,9 @@ function leer_(datos) {
   pestana_('gimnasio').getDataRange().getValues().slice(1).forEach((f) => {
     if (!(f[0] instanceof Date)) return;
     const t = aTexto_(f[0]);
-    if (t >= desde && t <= hasta && f[2] === 'hecho' && ENTRENOS.includes(f[1])) dia(t).entreno = f[1];
+    if (t < desde || t > hasta) return;
+    if (f[2] === 'hecho' && ENTRENOS.includes(f[1])) dia(t).entreno = f[1];
+    else if (f[2] === 'fallado') dia(t).entreno = 'descanso';
   });
   pestana_('habitos').getDataRange().getValues().slice(1).forEach((f) => {
     if (!(f[0] instanceof Date) || !(f[1] in HABITOS)) return;
@@ -525,15 +673,28 @@ function leer_(datos) {
     categoria: f[3] ? String(f[3]) : 'personal', hecha: f[4] === true,
   }));
 
-  const resultado = { dias: Object.keys(dias).sort().map((k) => dias[k]), movimientos: movimientos, tareas: tareas };
+  const resultado = {
+    dias: Object.keys(dias).sort().map((k) => dias[k]), movimientos: movimientos, tareas: tareas,
+    notasDia: leerNotasDia_(desde, hasta),
+  };
 
   // Eventos de calendario: solo si se piden (eventosDesde y eventosHasta)
   if (datos && (datos.eventosDesde || datos.eventosHasta)) {
-    const ed = exigirFecha_(datos.eventosDesde), eh = exigirFecha_(datos.eventosHasta);
-    if (eh < ed || (aFecha_(eh) - aFecha_(ed)) / 86400000 > MAX_DIAS_LECTURA) throw new ErrorPuente('rango no válido');
+    const [ed, eh] = rangoValido_(datos.eventosDesde, datos.eventosHasta);
     resultado.eventos = leerEventos_(ed, eh);
   }
+  if (datos && (datos.clasesDesde || datos.clasesHasta)) {
+    const [cd, ch] = rangoValido_(datos.clasesDesde, datos.clasesHasta);
+    resultado.clases = leerClases_(cd, ch);
+  }
+  if (datos && datos.conEspejo === true) resultado.espejo = leerEspejo_();
   return resultado;
+}
+
+function rangoValido_(desde, hasta) {
+  const d = exigirFecha_(desde), h = exigirFecha_(hasta);
+  if (h < d || (aFecha_(h) - aFecha_(d)) / 86400000 > MAX_DIAS_LECTURA) throw new ErrorPuente('rango no válido');
+  return [d, h];
 }
 
 // ---------- Para ejecutar a mano desde el editor ----------
@@ -554,6 +715,8 @@ const CABECERAS = {
   habitos: ['Fecha', 'Hábito', 'Valor'],
   finanzas: ['Fecha', 'Concepto', 'Tipo', 'Categoría', 'Cantidad', 'ID'],
   tareas: ['ID', 'Tarea', 'Fecha', 'Categoría', 'Hecha', 'Creada'],
+  notas: ['Fecha', 'Texto', 'Actualizada'],
+  espejo: ['Ruta', 'Nota'],
 };
 
 /**
@@ -598,8 +761,10 @@ function comprobar() {
   });
   Object.keys(CALENDARIOS).forEach((clave) => {
     Logger.log('Calendario "' + CALENDARIOS[clave] + '": ' +
-      (calendario_(clave, false) ? 'encontrado (' + (clave === 'examenes' ? 'se lee y se escribe' : 'se lee y se crean turnos') + ')' : 'NO ENCONTRADO (el nombre debe ser exacto)'));
+      (calendario_(clave, false) ? 'encontrado' : 'NO ENCONTRADO (el nombre debe ser exacto; prepararTodo crea los que falten)'));
   });
+  Logger.log('Calendario "' + CALENDARIO_CLASES + '" (solo lectura): ' +
+    (CalendarApp.getCalendarsByName(CALENDARIO_CLASES).some((c) => c.isOwnedByMe()) ? 'encontrado' : 'NO ENCONTRADO'));
   Logger.log('SECRETO configurado: ' + (PropertiesService.getScriptProperties().getProperty('SECRETO') ? 'sí' : 'NO (ejecuta crearSecreto)'));
 }
 

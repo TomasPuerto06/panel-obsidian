@@ -295,7 +295,8 @@ async function tarjetaNota() {
     `<span>Sueño: ${sueno === null ? "—" : fmtH(sueno)}</span><span>Entreno: ${esc(entrenoTxt)}</span></div>`;
   const notasHtml = extracto ? `<div class="p-note-text">${esc(extracto).replace(/\n/g, "<br>")}</div>` : "";
   const enlace = `<a class="internal-link" data-href="${esc(p.file.path)}" href="${esc(p.file.path)}">Abrir la nota de hoy</a>`;
-  return `<section class="p-card p-card--note"><div class="p-head"><h3>Nota del día</h3><span class="p-small">${fecha}</span></div>${lista}${notasHtml}<span class="p-small">${enlace}</span></section>`;
+  const escribir = `<a href="${enlaceQA("Escribir nota")}">Escribir nota</a>`;
+  return `<section class="p-card p-card--note"><div class="p-head"><h3>Nota del día</h3><span class="p-small">${fecha}</span></div>${lista}${notasHtml}<span class="p-small p-nota-enlaces">${escribir}${enlace}</span></section>`;
 }
 
 // Resumen de finanzas del mes actual, con los movimientos de Panel/Finanzas/Movimientos
@@ -322,7 +323,7 @@ const proyectosHtml = await (async () => {
 })();
 
 // Calendario de Inicio (Panel/Scripts/calendario/calculos.js, el mismo de Estudios): próximos exámenes, calendario del
-// mes con los días de color (los de gimnasio salen de las notas del día).
+// mes con una barra de color por cada cosa del día (el gimnasio sale de las notas del día).
 const calendarioPaq = await (async () => {
   const a = typeof app !== "undefined" ? app : dv.app;
   const codigo = await a.vault.adapter.read("Panel/Scripts/calendario/calculos.js");
@@ -366,25 +367,31 @@ const enlaceQA = (accion) => `obsidian://quickadd?vault=${encodeURIComponent(nom
 const accion = `<div class="p-actions"><a class="p-btn p-btn--sec" href="${enlaceQA("Sincronizar")}">Sincronizar</a>` +
   `<a class="p-btn" href="${enlaceQA("Registrar dia")}">Registrar día</a></div>`;
 
-const nota = await tarjetaNota();
 let html;
 if (modo === "salud") {
-  // Disposición: arriba, dos columnas que no se estiran entre sí: a la izquierda (3/4) los tres
-  // datos y debajo los hábitos; a la derecha (1/4) la nota del día y el ánimo. Los botones van encima, a la derecha. Abajo, a todo el
-  // ancho y en tres columnas: sueño, cinta y gimnasio por semana.
+  // Disposición: arriba, dos columnas: a la izquierda (3/4) los tres datos y debajo los hábitos; a la derecha (1/4)
+  // el plan del gimnasio. Los botones van encima, a la derecha. Abajo, a todo el ancho: ánimo, sueño, cinta y gimnasio
+  // por semana. La nota del día solo está en Inicio.
+  const planificador = await (async () => {
+    const a = typeof app !== "undefined" ? app : dv.app;
+    const m = { exports: {} };
+    new Function("module", "exports", await a.vault.adapter.read("Panel/Scripts/salud/planificador.js"))(m, m.exports);
+    return m.exports;
+  })();
+  const registros = Object.keys(notas).filter((s) => entreno(s) !== "").map((s) => ({ fecha: s, entreno: entreno(s) }));
   html = `<div class="p-salud">` + accion + `<div class="p-salud-arriba">` +
     `<div class="p-salud-main">` + tarjetasKpi() + tarjetaHabitosGrafica() + `</div>` +
-    `<div class="p-salud-aside">` + nota + tarjetaAnimo() + `</div></div>` +
-    `<div class="p-salud-fila3">` + tarjetaSueno() + tarjetaCinta() + tarjetaGimnasio() + `</div>` +
+    `<div class="p-salud-aside">` + planificador.tarjetaPlan(hoyS, registros, nombreBoveda) + `</div></div>` +
+    `<div class="p-salud-fila3">` + tarjetaAnimo() + tarjetaSueno() + tarjetaCinta() + tarjetaGimnasio() + `</div>` +
     `</div>`;
 } else {
-  html = accion + `<div class="p-layout"><div class="p-main">` +
+  html = `<div class="p-inicio-nota">` + await tarjetaNota() + `</div>` + accion + `<div class="p-layout"><div class="p-main">` +
     `<section class="p-block"><h2>Salud y rutina</h2>` + tarjetasKpi() + `</section>` +
     tarjetaHabitosGrafica() +
     tarjetaSueno() +
     `<div class="p-row-cards">` + tareasHtml + calendarioPaq.examenes + `</div>` +
     finanzasResumen() +
-    `</div><div class="p-aside">` + nota + calendarioPaq.calendario + calendarioPaq.turnos + proyectosHtml + `</div></div>`;
+    `</div><div class="p-aside">` + calendarioPaq.calendario + calendarioPaq.turnos + proyectosHtml + `</div></div>`;
 }
 
 // Sin ninguna nota del día todavía (primera vez): aviso que lleva a las páginas de ejemplo

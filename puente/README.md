@@ -4,8 +4,9 @@ Conecta el Panel en Obsidian con **Google Sheets** y **Google Calendar**, en los
 
 Es un script de Google Apps Script (`Puente.gs`) que vive en **tu** cuenta de Google. Solo sabe tocar:
 
-- Una hoja de cálculo con cuatro pestañas: **Gimnasio, Hábitos, Finanzas y Tareas**.
-- Dos calendarios elegidos por su nombre exacto: **"Exámenes y entregas"** (se leen, crean, cambian y borran exámenes) y **"Trabajo"** (se leen y solo se pueden **crear** turnos; nunca cambiar ni borrar los que ya hay).
+- Una hoja de cálculo con seis pestañas: **Gimnasio, Hábitos, Finanzas, Tareas, Notas del día y Espejo de Obsidian** (las dos últimas se crean solas).
+- Tres calendarios elegidos por su nombre exacto: **"Exámenes y entregas"**, **"Trabajo"** y **"Agenda del panel"** (se leen, crean, cambian y borran eventos; lo que sea parte de una serie no se toca).
+- El calendario **"Clases"**, solo para leer su título y sus horas.
 
 No ve tus otros calendarios ni tu correo.
 
@@ -22,9 +23,9 @@ La dirección del puente es pública (Google la sirve como una aplicación web),
 
 Límites que conviene conocer:
 
-- Quien consiga tu secreto podría leer y escribir esas cuatro pestañas, leer título, fecha y hora de los dos calendarios, cambiar los exámenes y crear turnos. Nada más. Si crees que se ha filtrado, ejecuta `crearSecreto` otra vez y pon el nuevo en Obsidian ("Configurar puente").
+- Quien consiga tu secreto podría leer y escribir esas seis pestañas, leer, crear, cambiar o borrar eventos de los tres calendarios y leer el horario de clases. Nada más. Si crees que se ha filtrado, ejecuta `crearSecreto` otra vez y pon el nuevo en Obsidian ("Configurar puente").
 - El secreto se guarda en `Panel/Scripts/.puente/conexion.json`, dentro de tu bóveda. Si la sincronizas con un servicio en la nube, quien entre en esa cuenta podría verlo. Nunca subas esa carpeta a un repositorio (ya está en el `.gitignore`).
-- Técnicamente, el permiso que Google concede al script es sobre todos tus calendarios, aunque el código solo toca esos dos por su nombre.
+- Técnicamente, el permiso que Google concede al script es sobre todos tus calendarios, aunque el código solo toca esos cuatro por su nombre.
 
 ## Puesta en marcha (unos 10 minutos)
 

@@ -2,6 +2,8 @@
   "theme": "obsidian",
   "enabledCssSnippets": [
     "chakra-petch",
-    "panel"
+    "panel",
+    "grafo",
+    "notas"
   ]
 }
